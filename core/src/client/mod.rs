@@ -32,10 +32,10 @@ pub async fn fetch_info(device: &Device) -> Result<RegisterDto, ClientError> {
         .get(&url)
         .send()
         .await
-        .map_err(|e| ClientError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| ClientError::Network(std::io::Error::other(e)))?;
     resp.json::<RegisterDto>()
         .await
-        .map_err(|e| ClientError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))
+        .map_err(|e| ClientError::Network(std::io::Error::other(e)))
 }
 
 pub async fn request_upload(
@@ -59,13 +59,13 @@ pub async fn request_upload(
         .json(&body)
         .send()
         .await
-        .map_err(|e| ClientError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| ClientError::Network(std::io::Error::other(e)))?;
 
     match resp.status().as_u16() {
         200 => resp
             .json::<PrepareUploadResponseDto>()
             .await
-            .map_err(|e| ClientError::Network(std::io::Error::new(std::io::ErrorKind::Other, e))),
+            .map_err(|e| ClientError::Network(std::io::Error::other(e))),
         401 => Err(ClientError::PinRequired),
         code => Err(ClientError::Rejected(code)),
     }
@@ -88,7 +88,7 @@ pub async fn upload_file_bytes(
         .body(bytes)
         .send()
         .await
-        .map_err(|e| ClientError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| ClientError::Network(std::io::Error::other(e)))?;
 
     if resp.status().is_success() {
         Ok(())
