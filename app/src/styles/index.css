@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-void-950 text-slate-100 antialiased;
+    background-image:
+      radial-gradient(circle at 20% 15%, rgba(157, 123, 255, 0.14), transparent 40%),
+      radial-gradient(circle at 80% 85%, rgba(77, 217, 255, 0.12), transparent 45%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* Base glass panel used by device cards, modals, and the drop zone. */
+  .glass-panel {
+    @apply rounded-glass border border-white/10 bg-white/5 backdrop-blur-glass shadow-glass;
+  }
+}

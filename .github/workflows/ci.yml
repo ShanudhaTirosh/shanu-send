@@ -1,0 +1,135 @@
+name: CI
+
+# Runs on every push/PR. Fast, no installer bundling — that's release.yml's
+# job. This is the "did I break something" gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # --- Rust protocol crate: the part that MUST be correct -------------------
+  core-test:
+    name: core / test + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: cargo fmt --check
+        working-directory: core
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: core
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test (default features)
+        working-directory: core
+        run: cargo test
+
+      - name: cargo build (tls feature)
+        working-directory: core
+        # Informational, not blocking: see docs/BUILD.md#troubleshooting for
+        # why this feature occasionally needs an axum-server version bump
+        # depending on what's newly published upstream.
+        continue-on-error: true
+        run: cargo build --features tls
+
+  # --- Frontend: typecheck + production build --------------------------------
+  frontend-build:
+    name: app / typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: app
+        run: npx tsc -b
+
+      - name: Production build
+        working-directory: app
+        run: npx vite build
+
+      - name: Upload frontend build (debug artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: app/dist
+          retention-days: 7
+
+  # --- Full Tauri shell: real compile check on a real, current toolchain -----
+  # This is the check that matters most for this project's history: the
+  # src-tauri glue layer was written but could only be reviewed, not
+  # compiled, in the sandbox it was developed in (old rustc via apt, no
+  # system webview libs available for a full Tauri build). This job is the
+  # first real, unconstrained compile of that code.
+  tauri-build-check:
+    name: app/src-tauri / cargo build (debug)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            build-essential \
+            pkg-config
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+
+      - name: Build frontend (Tauri build.rs expects app/dist to exist)
+        working-directory: app
+        run: npx vite build
+
+      - name: cargo build (debug, no bundling)
+        working-directory: app/src-tauri
+        run: cargo build

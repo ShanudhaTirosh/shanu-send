@@ -1,0 +1,23 @@
+# Rust
+/target/
+**/target/
+Cargo.lock.bak
+
+# Node
+node_modules/
+app/dist/
+app/tsconfig.tsbuildinfo
+npm-debug.log*
+
+# Tauri
+app/src-tauri/target/
+app/src-tauri/gen/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
