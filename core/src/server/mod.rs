@@ -136,7 +136,11 @@ impl ServerState {
 
     /// Called by the UI layer once the user accepts/rejects an incoming
     /// transfer request. `accepted_file_ids = None` rejects the whole session.
-    pub async fn respond_prepare_upload(&self, session_id: &str, accepted_file_ids: Option<Vec<String>>) {
+    pub async fn respond_prepare_upload(
+        &self,
+        session_id: &str,
+        accepted_file_ids: Option<Vec<String>>,
+    ) {
         if let Some(waiter) = self.accept_waiters.lock().await.remove(session_id) {
             let _ = waiter.send(accepted_file_ids);
         }
@@ -160,7 +164,10 @@ impl ServerState {
     }
 
     pub async fn untrust_device(&self, fingerprint: &str) {
-        self.trusted_fingerprints.lock().await.retain(|f| f != fingerprint);
+        self.trusted_fingerprints
+            .lock()
+            .await
+            .retain(|f| f != fingerprint);
     }
 
     pub async fn list_trusted(&self) -> Vec<String> {
@@ -201,7 +208,10 @@ pub fn build_router(state: Arc<ServerState>) -> Router {
     Router::new()
         .route("/api/localsend/v2/info", get(info_handler))
         .route("/api/localsend/v2/register", post(register_handler))
-        .route("/api/localsend/v2/prepare-upload", post(prepare_upload_handler))
+        .route(
+            "/api/localsend/v2/prepare-upload",
+            post(prepare_upload_handler),
+        )
         .route("/api/localsend/v2/upload", post(upload_handler))
         .route("/api/localsend/v2/cancel", post(cancel_handler))
         .with_state(state)
@@ -264,7 +274,11 @@ async fn prepare_upload_handler(
         // Auto-accept: skip the UI round-trip entirely.
         Some(req.files.keys().cloned().collect())
     } else {
-        state.accept_waiters.lock().await.insert(session_id.clone(), accept_tx);
+        state
+            .accept_waiters
+            .lock()
+            .await
+            .insert(session_id.clone(), accept_tx);
 
         let _ = state
             .events
@@ -323,7 +337,10 @@ async fn upload_handler(
     let (file_name, expected_size) = {
         let sessions = state.sessions.lock().await;
         let session = sessions.get(&q.session_id).ok_or(StatusCode::NOT_FOUND)?;
-        let real_token = session.tokens.get(&q.file_id).ok_or(StatusCode::FORBIDDEN)?;
+        let real_token = session
+            .tokens
+            .get(&q.file_id)
+            .ok_or(StatusCode::FORBIDDEN)?;
         if real_token != &q.token {
             return Err(StatusCode::FORBIDDEN);
         }
@@ -340,7 +357,9 @@ async fn upload_handler(
     let mut f = tokio::fs::File::create(&dest_path)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    f.write_all(&body).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    f.write_all(&body)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let _ = state
         .events
@@ -369,7 +388,10 @@ struct CancelQuery {
     session_id: String,
 }
 
-async fn cancel_handler(State(state): State<Arc<ServerState>>, Query(q): Query<CancelQuery>) -> StatusCode {
+async fn cancel_handler(
+    State(state): State<Arc<ServerState>>,
+    Query(q): Query<CancelQuery>,
+) -> StatusCode {
     state.sessions.lock().await.remove(&q.session_id);
     state.accept_waiters.lock().await.remove(&q.session_id);
     let _ = state

@@ -176,6 +176,23 @@ environment*, not a requirement of the code itself. On your real machine
 with `rustup`-installed current stable Rust, delete `core/Cargo.lock` and
 run `cargo build` — everything resolves to current versions fine.)
 
+**`error[E0061]`/`error[E0308]` inside `tauri-build`, mentioning
+`save_global_api_scripts_paths`, `read_from`, or `external_binaries`**
+This bit us in this project's first real CI run and is now fixed — noting
+it here in case it resurfaces. Cause: `tauri-build` was pinned to an exact
+old version (`=2.0.3`) without also pinning its sibling crate
+`tauri-utils`, which resolved independently to a much newer release with a
+different internal API. Fix: don't hand-pin individual crates from the
+Tauri family — use bare `"2"` ranges for `tauri`, `tauri-build`, and
+`tauri-plugin-*` so Cargo resolves them together, and delete
+`app/src-tauri/Cargo.lock` if a stale one exists before rebuilding.
+
+**`cargo fmt --check` fails in CI**
+Run `cargo fmt` locally in the affected crate (`core` or `app/src-tauri`)
+before pushing — `rustfmt` doesn't need the dependency tree to resolve, so
+this is safe to run even if the crate can't fully compile in your current
+environment.
+
 **`cargo build --features tls` fails inside `axum-server` with a trait-bound
 error mentioning `hyper-util`**
 This is a real upstream compatibility gap between specific `axum-server`

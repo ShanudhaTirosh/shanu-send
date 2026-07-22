@@ -29,9 +29,18 @@ pub enum SendEvent {
     Preparing,
     Rejected,
     PinRequired,
-    FileProgress { file_id: String, bytes_sent: u64, total_bytes: u64 },
-    FileDone { file_id: String },
-    FileFailed { file_id: String, reason: String },
+    FileProgress {
+        file_id: String,
+        bytes_sent: u64,
+        total_bytes: u64,
+    },
+    FileDone {
+        file_id: String,
+    },
+    FileFailed {
+        file_id: String,
+        reason: String,
+    },
     AllDone,
 }
 
@@ -103,7 +112,8 @@ pub async fn send_files(
             })
             .await;
 
-        match client::upload_file_bytes(&target, &response.session_id, &file.id, token, bytes).await {
+        match client::upload_file_bytes(&target, &response.session_id, &file.id, token, bytes).await
+        {
             Ok(()) => {
                 let _ = events
                     .send(SendEvent::FileProgress {
@@ -112,7 +122,11 @@ pub async fn send_files(
                         total_bytes: total,
                     })
                     .await;
-                let _ = events.send(SendEvent::FileDone { file_id: file.id.clone() }).await;
+                let _ = events
+                    .send(SendEvent::FileDone {
+                        file_id: file.id.clone(),
+                    })
+                    .await;
             }
             Err(e) => {
                 let _ = events

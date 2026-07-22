@@ -12,7 +12,9 @@ pub struct AppState {
 /// generating one on first run. Keeping the fingerprint stable across
 /// restarts is what lets peers' "trusted device" pinning actually mean
 /// something — regenerating the cert every launch would break that.
-pub fn load_or_create_identity(app_data_dir: &PathBuf) -> (String, shanusend_core::crypto::GeneratedCert) {
+pub fn load_or_create_identity(
+    app_data_dir: &PathBuf,
+) -> (String, shanusend_core::crypto::GeneratedCert) {
     std::fs::create_dir_all(app_data_dir).ok();
 
     let alias_path = app_data_dir.join("alias.txt");

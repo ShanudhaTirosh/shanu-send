@@ -116,13 +116,27 @@ mod tests {
 
         append(
             &path,
-            TransferRecord::new(Direction::Sent, "Test Peer", "a.txt", 10, RecordStatus::Done, None),
+            TransferRecord::new(
+                Direction::Sent,
+                "Test Peer",
+                "a.txt",
+                10,
+                RecordStatus::Done,
+                None,
+            ),
         )
         .await
         .unwrap();
         append(
             &path,
-            TransferRecord::new(Direction::Received, "Test Peer", "b.txt", 20, RecordStatus::Failed, None),
+            TransferRecord::new(
+                Direction::Received,
+                "Test Peer",
+                "b.txt",
+                20,
+                RecordStatus::Failed,
+                None,
+            ),
         )
         .await
         .unwrap();
@@ -141,7 +155,8 @@ mod tests {
 
     #[tokio::test]
     async fn caps_at_max_records() {
-        let dir = std::env::temp_dir().join(format!("shanusend-history-cap-test-{}", Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("shanusend-history-cap-test-{}", Uuid::new_v4()));
         let path = dir.join("history.json");
 
         for i in 0..(MAX_RECORDS + 10) {

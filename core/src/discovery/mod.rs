@@ -70,7 +70,9 @@ pub fn listen() -> (mpsc::Receiver<DiscoveryEvent>, tokio::task::JoinHandle<()>)
                                 break; // receiver dropped
                             }
                         }
-                        Err(e) => debug!("ignoring malformed discovery packet from {from_addr}: {e}"),
+                        Err(e) => {
+                            debug!("ignoring malformed discovery packet from {from_addr}: {e}")
+                        }
                     }
                 }
                 Err(e) => {

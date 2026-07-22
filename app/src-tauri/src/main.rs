@@ -68,8 +68,10 @@ fn main() {
                 // file_id, not the original file name or sender — so we
                 // remember those from the IncomingRequest event that always
                 // precedes them for the same session.
-                let mut pending_meta: std::collections::HashMap<(String, String), (String, String, u64)> =
-                    std::collections::HashMap::new();
+                let mut pending_meta: std::collections::HashMap<
+                    (String, String),
+                    (String, String, u64),
+                > = std::collections::HashMap::new();
 
                 while let Some(event) = server_events.recv().await {
                     let event_name = match &event {
@@ -94,7 +96,11 @@ fn main() {
                                 );
                             }
                         }
-                        ServerEvent::UploadComplete { session_id, file_id, .. } => {
+                        ServerEvent::UploadComplete {
+                            session_id,
+                            file_id,
+                            ..
+                        } => {
                             if let Some((file_name, sender_alias, size)) =
                                 pending_meta.remove(&(session_id.clone(), file_id.clone()))
                             {
@@ -106,10 +112,18 @@ fn main() {
                                     shanusend_core::history::RecordStatus::Done,
                                     None,
                                 );
-                                let _ = shanusend_core::history::append(&history_path_for_receive, record).await;
+                                let _ = shanusend_core::history::append(
+                                    &history_path_for_receive,
+                                    record,
+                                )
+                                .await;
                             }
                         }
-                        ServerEvent::UploadFailed { session_id, file_id, .. } => {
+                        ServerEvent::UploadFailed {
+                            session_id,
+                            file_id,
+                            ..
+                        } => {
                             if let Some((file_name, sender_alias, size)) =
                                 pending_meta.remove(&(session_id.clone(), file_id.clone()))
                             {
@@ -121,7 +135,11 @@ fn main() {
                                     shanusend_core::history::RecordStatus::Failed,
                                     None,
                                 );
-                                let _ = shanusend_core::history::append(&history_path_for_receive, record).await;
+                                let _ = shanusend_core::history::append(
+                                    &history_path_for_receive,
+                                    record,
+                                )
+                                .await;
                             }
                         }
                         _ => {}
@@ -141,7 +159,10 @@ fn main() {
                     let device = Device {
                         ip: evt.from_addr.ip().to_string(),
                         port: evt.dto.port.unwrap_or(discovery::DEFAULT_PORT),
-                        https: matches!(evt.dto.protocol, Some(shanusend_core::models::ProtocolType::Https)),
+                        https: matches!(
+                            evt.dto.protocol,
+                            Some(shanusend_core::models::ProtocolType::Https)
+                        ),
                         alias: evt.dto.alias.clone(),
                         version: evt.dto.version.clone().unwrap_or_default(),
                         device_model: evt.dto.device_model.clone(),
@@ -154,7 +175,11 @@ fn main() {
 
                     // Per protocol: reply directly (unicast) rather than
                     // re-broadcasting, to keep multicast traffic low.
-                    if evt.dto.announce.unwrap_or(evt.dto.announcement.unwrap_or(false)) {
+                    if evt
+                        .dto
+                        .announce
+                        .unwrap_or(evt.dto.announcement.unwrap_or(false))
+                    {
                         let self_dto = discovery::build_self_announcement(
                             &alias,
                             &cert.fingerprint,

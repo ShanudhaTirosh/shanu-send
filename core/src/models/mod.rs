@@ -6,33 +6,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// `DeviceType` as used by upstream LocalSend.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum DeviceType {
     Mobile,
+    #[default]
     Desktop,
     Web,
     Headless,
     Server,
 }
 
-impl Default for DeviceType {
-    fn default() -> Self {
-        DeviceType::Desktop
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ProtocolType {
     Http,
+    #[default]
     Https,
-}
-
-impl Default for ProtocolType {
-    fn default() -> Self {
-        ProtocolType::Https
-    }
 }
 
 /// Sent as the UDP multicast payload (and as the HTTP /register body).

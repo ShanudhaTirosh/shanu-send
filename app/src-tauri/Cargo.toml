@@ -5,23 +5,30 @@ description = "ShanuSend — lightweight, LocalSend-compatible file transfer"
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "=2.0.3", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 shanusend-core = { path = "../../core" }
-tauri = { version = "=2.0.6", features = [] }
-tauri-plugin-dialog = "=2.0.1"
-serde = { version = "=1.0.203", features = ["derive"] }
-serde_json = "=1.0.128"
-tokio = { version = "=1.38.1", features = ["full"] }
-uuid = { version = "=1.9.1", features = ["v4"] }
-tracing = "=0.1.40"
-tracing-subscriber = "=0.3.18"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
 dirs = "5"
 
-# NOTE: same rustc-1.75-sandbox pins as core/Cargo.toml — see the comment
-# there. On a real machine with current Rust these can go back to bare
-# `"2"` / `"1"` ranges; Tauri 2 itself requires Rust >= 1.77 regardless.
+# NOTE: previously pinned to exact mid-2024 versions to work around a
+# development sandbox stuck on rustc 1.75. That pinning is what caused a
+# real CI failure: `tauri-build = "=2.0.3"` was left unpinned relative to
+# its sibling crate `tauri-utils`, which resolved independently to a much
+# newer `2.9.3` and broke on an internal API tauri-build 2.0.3 called with
+# the old signature (`save_global_api_scripts_paths`, `read_from`,
+# `external_binaries`). The fix is exactly this: don't hand-pin individual
+# crates from a fast-moving, co-versioned family (tauri/tauri-build/
+# tauri-utils/tauri-plugin-*) — let Cargo resolve them together. Tauri 2
+# requires Rust >= 1.77 regardless of any of this.
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

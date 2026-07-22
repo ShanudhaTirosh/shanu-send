@@ -140,7 +140,10 @@ pub async fn respond_prepare_upload(
     session_id: String,
     accepted_file_ids: Option<Vec<String>>,
 ) -> Result<(), String> {
-    state.server.respond_prepare_upload(&session_id, accepted_file_ids).await;
+    state
+        .server
+        .respond_prepare_upload(&session_id, accepted_file_ids)
+        .await;
     Ok(())
 }
 
@@ -156,7 +159,12 @@ pub struct Settings {
 pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
     Ok(Settings {
         alias: state.server.device.alias.clone(),
-        save_dir: state.server.get_save_dir().await.to_string_lossy().to_string(),
+        save_dir: state
+            .server
+            .get_save_dir()
+            .await
+            .to_string_lossy()
+            .to_string(),
         pin_enabled: state.server.pin_enabled().await,
         trusted_fingerprints: state.server.list_trusted().await,
     })
@@ -178,7 +186,10 @@ pub async fn set_pin(state: State<'_, AppState>, pin: Option<String>) -> Result<
 /// directly and hand us the result, rather than routing through a command.
 #[tauri::command]
 pub async fn set_save_dir(state: State<'_, AppState>, path: String) -> Result<(), String> {
-    state.server.set_save_dir(std::path::PathBuf::from(path)).await;
+    state
+        .server
+        .set_save_dir(std::path::PathBuf::from(path))
+        .await;
     Ok(())
 }
 
@@ -203,10 +214,7 @@ pub async fn set_device_trusted(
 /// A restart regenerates the identity cleanly instead.
 #[tauri::command]
 pub fn rename_device(app: tauri::AppHandle, new_alias: String) -> Result<(), String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("alias.txt"), new_alias.trim()).map_err(|e| e.to_string())
 }

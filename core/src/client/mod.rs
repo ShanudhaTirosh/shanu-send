@@ -4,7 +4,9 @@
 //! Phase 3 (see plan §7) once `crypto::generate_self_signed` output is
 //! threaded through here as a custom `rustls` verifier.
 
-use crate::models::{Device, FileDto, PrepareUploadRequestDto, PrepareUploadResponseDto, RegisterDto};
+use crate::models::{
+    Device, FileDto, PrepareUploadRequestDto, PrepareUploadResponseDto, RegisterDto,
+};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -47,7 +49,10 @@ pub async fn request_upload(
         url.push_str(&format!("?pin={pin}"));
     }
 
-    let body = PrepareUploadRequestDto { info: self_info, files };
+    let body = PrepareUploadRequestDto {
+        info: self_info,
+        files,
+    };
     let client = http_client(device.https);
     let resp = client
         .post(&url)

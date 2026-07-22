@@ -41,10 +41,14 @@ pub fn generate_self_signed(alias: &str) -> Result<GeneratedCert, rcgen::Error> 
 /// SHA-256 fingerprint of a DER-encoded certificate, lowercase hex — matches
 /// the format LocalSend uses in `RegisterDto.fingerprint`.
 pub fn fingerprint_of(cert_der: &[u8]) -> String {
+    use std::fmt::Write;
     let mut hasher = Sha256::new();
     hasher.update(cert_der);
     let digest = hasher.finalize();
-    digest.iter().map(|b| format!("{b:02x}")).collect()
+    digest.iter().fold(String::with_capacity(64), |mut acc, b| {
+        let _ = write!(acc, "{b:02x}");
+        acc
+    })
 }
 
 /// Constant-time-ish PIN check (length-independent short-circuit is fine
