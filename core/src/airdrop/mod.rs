@@ -75,13 +75,72 @@ async fn airdrop_ask_handler(
     }))
 }
 
-async fn airdrop_upload_handler() -> StatusCode {
-    info!("AirDrop binary file stream uploaded from native Apple device");
-    StatusCode::OK
+async fn airdrop_upload_handler(
+    body: axum::body::Bytes,
+) -> StatusCode {
+    info!("AirDrop binary file stream uploaded from native Apple device ({} bytes)", body.len());
+    
+    // Save uploaded AirDrop file into downloads folder
+    let save_dir = std::env::temp_dir().join("ShanuSendDownloads").join("AirDrop");
+    let _ = tokio::fs::create_dir_all(&save_dir).await;
+    
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let target_path = save_dir.join(format!("AirDrop_Received_{timestamp}.bin"));
+    
+    if tokio::fs::write(&target_path, &body).await.is_ok() {
+        info!("AirDrop file successfully saved to: {:?}", target_path);
+        StatusCode::OK
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
 }
 
 async fn airdrop_discover_handler() -> StatusCode {
     StatusCode::OK
+}
+
+/// Outbound AirDrop file sender function to transmit files to Apple devices.
+pub async fn send_file_to_airdrop(
+    target_ip: &str,
+    target_port: u16,
+    device_name: &str,
+    file_name: &str,
+    file_data: &[u8],
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()?;
+
+    // 1. Send /Ask request
+    let ask_url = format!("https://{target_ip}:{target_port}/Ask");
+    let ask_req = AirDropAskRequest {
+        sender: AirDropSenderRecord {
+            device_name: device_name.to_string(),
+            model: Some("MacBookPro".to_string()),
+        },
+        files: vec![AirDropFileRecord {
+            file_name: file_name.to_string(),
+            file_type: Some("application/octet-stream".to_string()),
+            file_size: file_data.len() as u64,
+        }],
+    };
+
+    let resp = client.post(&ask_url).json(&ask_req).send().await?;
+    if resp.status().is_success() {
+        // 2. Stream file bytes to /Upload
+        let upload_url = format!("https://{target_ip}:{target_port}/Upload");
+        let upload_resp = client
+            .post(&upload_url)
+            .body(file_data.to_vec())
+            .send()
+            .await?;
+        return Ok(upload_resp.status().is_success());
+    }
+
+    Ok(false)
 }
 
 /// Generates an Apple AirDrop BLE Manufacturer Data advertisement payload.
