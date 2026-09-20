@@ -1295,6 +1295,7 @@ dependencies = [
 name = "shanusend-core"
 version = "0.1.0"
 dependencies = [
+ "aws-lc-sys",
  "axum",
  "axum-server",
  "futures",

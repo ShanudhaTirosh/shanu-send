@@ -14,10 +14,13 @@
 
 pub mod airdrop;
 pub mod client;
+pub mod clipboard;
 pub mod crypto;
 pub mod discovery;
 pub mod history;
 pub mod models;
+pub mod phone_utils;
+pub mod remote_input;
 pub mod server;
 pub mod transfer;
 
