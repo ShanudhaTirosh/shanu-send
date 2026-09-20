@@ -9,6 +9,8 @@ import '../services/webdrop_server.dart';
 import '../widgets/speed_badge.dart';
 import '../widgets/webdrop_modal.dart';
 
+import 'kde_connect_view.dart';
+
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -80,6 +82,15 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _openRemoteController([String deviceName = 'Desktop PC']) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => KdeConnectView(deviceName: deviceName),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,16 +103,21 @@ class _HomeViewState extends State<HomeView> {
             Icon(Icons.bolt_rounded, color: Color(0xFF38BDF8), size: 28),
             SizedBox(width: 8),
             Text(
-              'ShanuSend',
+              'ShanuSend Mobile',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 22,
+                fontSize: 20,
               ),
             ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.mouse_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Mobile Remote Touchpad',
+            onPressed: () => _openRemoteController(),
+          ),
           IconButton(
             icon: const Icon(Icons.radar_rounded, color: Color(0xFF38BDF8)),
             tooltip: 'AirDrop / WebDrop Portal',

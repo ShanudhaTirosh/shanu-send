@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Zap, Settings as SettingsIcon, History as HistoryIcon, QrCode, MousePointer, Smartphone, Monitor, FolderUp } from "lucide-react";
+import { Send, Zap, Settings as SettingsIcon, History as HistoryIcon, QrCode, Smartphone, Monitor, FolderUp } from "lucide-react";
 import type { Device } from "./types";
 import { useDevices } from "./features/discovery/useDevices";
 import { DeviceList } from "./features/discovery/DeviceList";
@@ -11,14 +11,13 @@ import { IncomingTransferPanel } from "./features/transfer/IncomingTransferPanel
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
 import { AirDropBridgeModal } from "./features/airdrop/AirDropBridgeModal";
-import { RemoteTouchpadPanel } from "./features/remote/RemoteTouchpadPanel";
 import { PhoneControlPanel } from "./features/phone/PhoneControlPanel";
 import { ScreenMirrorModal } from "./features/mirror/ScreenMirrorModal";
 import { QuickShareModal } from "./features/quickshare/QuickShareModal";
 import { KdeConnectModal } from "./features/kdeconnect/KdeConnectModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
-type ActiveTab = "transfer" | "touchpad" | "phone";
+type ActiveTab = "transfer" | "mirror" | "kdehub";
 
 export default function App() {
   const { devices, scanning, rescan } = useDevices();
@@ -66,9 +65,9 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              ShanuSend <span className="rounded-full bg-neon-cyan/10 px-2 py-0.5 text-[10px] font-semibold text-neon-cyan border border-neon-cyan/20">v2.5 Pro</span>
+              ShanuSend <span className="rounded-full bg-neon-cyan/10 px-2 py-0.5 text-[10px] font-semibold text-neon-cyan border border-neon-cyan/20">Desktop Pro v2.5</span>
             </h1>
-            <p className="text-xs text-slate-400">Universal File Sharing, Remote Touchpad & Screen Mirroring</p>
+            <p className="text-xs text-slate-400">Universal LAN Sharing, Scrcpy Mirroring & KDE Control Suite</p>
           </div>
         </div>
 
@@ -77,10 +76,10 @@ export default function App() {
           <button
             onClick={() => setKdeConnectOpen(true)}
             className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-            title="KDE Connect Full Suite"
+            title="KDE Connect Desktop Suite"
           >
             <Smartphone size={15} className="text-cyan-400" />
-            <span>KDE Connect</span>
+            <span>KDE Hub</span>
           </button>
           <button
             onClick={() => setQuickShareOpen(true)}
@@ -92,7 +91,7 @@ export default function App() {
           <button
             onClick={() => setMirrorOpen(true)}
             className="glass-button text-xs"
-            title="Screen Mirroring"
+            title="Screen Mirroring (Desktop Host)"
           >
             <Monitor size={15} className="text-neon-cyan" />
             <span className="hidden sm:inline">Screen Mirror</span>
@@ -103,7 +102,7 @@ export default function App() {
             title="AirDrop / WebDrop Portal"
           >
             <QrCode size={15} />
-            <span>AirDrop / WebDrop</span>
+            <span>WebDrop Portal</span>
           </button>
           <button
             onClick={() => setHistoryOpen(true)}
@@ -122,6 +121,33 @@ export default function App() {
         </div>
       </header>
 
+      {/* Target Device Contextual Banner */}
+      {selected && (
+        <div className="flex items-center justify-between rounded-xl border border-neon-cyan/30 bg-neon-cyan/5 px-4 py-2 text-xs text-neon-cyan animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-neon-cyan animate-ping" />
+            <span className="font-semibold">Target Device: {selected.alias}</span>
+            <span className="text-slate-400">({selected.device_type} &middot; {selected.ip})</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {selected.device_type === "Mobile" && (
+              <button
+                onClick={() => setMirrorOpen(true)}
+                className="font-semibold text-neon-cyan hover:underline"
+              >
+                Launch Screen Mirror →
+              </button>
+            )}
+            <button
+              onClick={() => setSelected(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Primary Navigation Tabs */}
       <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1.5 backdrop-blur-glass">
         <button
@@ -134,22 +160,22 @@ export default function App() {
           <span>File Transfer</span>
         </button>
         <button
-          onClick={() => setActiveTab("touchpad")}
+          onClick={() => setActiveTab("mirror")}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "touchpad" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            activeTab === "mirror" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <MousePointer size={15} />
-          <span>Remote Touchpad</span>
+          <Monitor size={15} />
+          <span>Screen Mirroring</span>
         </button>
         <button
-          onClick={() => setActiveTab("phone")}
+          onClick={() => setActiveTab("kdehub")}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "phone" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            activeTab === "kdehub" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
           }`}
         >
           <Smartphone size={15} />
-          <span>Phone Hub</span>
+          <span>KDE Device Hub</span>
         </button>
       </div>
 
@@ -176,8 +202,43 @@ export default function App() {
             </>
           )}
 
-          {activeTab === "touchpad" && <RemoteTouchpadPanel selectedDevice={selected} />}
-          {activeTab === "phone" && <PhoneControlPanel selectedDevice={selected} />}
+          {activeTab === "mirror" && (
+            <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neon-cyan/20 text-neon-cyan">
+                    <Monitor size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Desktop Screen Mirror Host</h3>
+                    <p className="text-xs text-slate-400">Stream connected Android screens using high-performance Scrcpy H.264/H.265 engine</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMirrorOpen(true)}
+                  className="glass-button-primary text-xs px-4 py-2"
+                >
+                  Configure & Start Mirror
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs text-slate-300">
+                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
+                  <p className="font-semibold text-neon-cyan">Wireless ADB Pairing</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Pair Android 11+ over Wi-Fi without USB cables</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
+                  <p className="font-semibold text-neon-violet">Hardware OTG Mode</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Seamless cursor & physical keyboard forwarding</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
+                  <p className="font-semibold text-emerald-400">Opus Audio Pass-Through</p>
+                  <p className="mt-1 text-[11px] text-slate-400">Low-latency internal device audio streaming</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "kdehub" && <PhoneControlPanel selectedDevice={selected} />}
         </div>
 
         {/* Discovery Device Sidebar */}

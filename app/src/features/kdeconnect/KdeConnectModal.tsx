@@ -35,14 +35,14 @@ interface KdeConnectModalProps {
   deviceName?: string;
 }
 
-type TabType = 'input' | 'media' | 'sms' | 'commands' | 'presenter' | 'notifications';
+type TabType = 'notifications' | 'sms' | 'commands' | 'media';
 
 export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   isOpen,
   onClose,
   deviceName = 'KDE Connect Device',
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('input');
+  const [activeTab, setActiveTab] = useState<TabType>('notifications');
 
   // Battery & Phone State
   const [batteryLevel] = useState<number | null>(null);
@@ -189,12 +189,10 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
         {/* Navigation Tabs */}
         <div className="flex border-b border-white/10 bg-black/40 px-6 gap-2 pt-2">
           {[
-            { id: 'input', label: 'Trackpad & Input', icon: Mouse },
-            { id: 'media', label: 'Media Remote (MPRIS)', icon: Play },
+            { id: 'notifications', label: 'Notifications', icon: Bell },
             { id: 'sms', label: 'SMS & Contacts', icon: MessageSquare },
             { id: 'commands', label: 'Remote Commands', icon: Terminal },
-            { id: 'presenter', label: 'Presenter Clicker', icon: Presentation },
-            { id: 'notifications', label: 'Notifications', icon: Bell },
+            { id: 'media', label: 'Media Remote (MPRIS)', icon: Play },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
