@@ -1,6 +1,5 @@
 /// Quick Share / Nearby Share native protocol implementation.
 /// Reference: google/nearby & open-quickshare
-
 use serde::{Deserialize, Serialize};
 
 pub const QUICKSHARE_MDNS_SERVICE: &str = "_FC92._tcp.local.";

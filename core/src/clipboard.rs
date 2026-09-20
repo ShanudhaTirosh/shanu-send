@@ -9,7 +9,11 @@ pub struct SharedClipboardPayload {
 }
 
 impl SharedClipboardPayload {
-    pub fn new(content: impl Into<String>, sender_alias: impl Into<String>, sender_device_id: impl Into<String>) -> Self {
+    pub fn new(
+        content: impl Into<String>,
+        sender_alias: impl Into<String>,
+        sender_device_id: impl Into<String>,
+    ) -> Self {
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())

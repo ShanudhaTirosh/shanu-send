@@ -75,21 +75,24 @@ async fn airdrop_ask_handler(
     }))
 }
 
-async fn airdrop_upload_handler(
-    body: axum::body::Bytes,
-) -> StatusCode {
-    info!("AirDrop binary file stream uploaded from native Apple device ({} bytes)", body.len());
-    
+async fn airdrop_upload_handler(body: axum::body::Bytes) -> StatusCode {
+    info!(
+        "AirDrop binary file stream uploaded from native Apple device ({} bytes)",
+        body.len()
+    );
+
     // Save uploaded AirDrop file into downloads folder
-    let save_dir = std::env::temp_dir().join("ShanuSendDownloads").join("AirDrop");
+    let save_dir = std::env::temp_dir()
+        .join("ShanuSendDownloads")
+        .join("AirDrop");
     let _ = tokio::fs::create_dir_all(&save_dir).await;
-    
+
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let target_path = save_dir.join(format!("AirDrop_Received_{timestamp}.bin"));
-    
+
     if tokio::fs::write(&target_path, &body).await.is_ok() {
         info!("AirDrop file successfully saved to: {:?}", target_path);
         StatusCode::OK
@@ -194,7 +197,11 @@ pub fn start_airdrop_mdns_responder(device_name: String) -> tokio::task::JoinHan
         let bind_addr: std::net::SocketAddr =
             std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 5353).into();
 
-        if socket.bind(&bind_addr.into()).is_ok() && socket.join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED).is_ok() {
+        if socket.bind(&bind_addr.into()).is_ok()
+            && socket
+                .join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED)
+                .is_ok()
+        {
             if let Ok(udp) = tokio::net::UdpSocket::from_std(socket.into()) {
                 let mut buf = [0u8; 1024];
                 while let Ok((len, from)) = udp.recv_from(&mut buf).await {

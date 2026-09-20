@@ -1,6 +1,5 @@
 /// Scrcpy Pro Suite configuration, argument builder, and Wireless ADB manager.
 /// Reference: Genymobile/scrcpy & kil0bit-kb/scrcpy-gui
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
