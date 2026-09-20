@@ -42,7 +42,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           cd flutter_app
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
 
       - name: Build Windows Executable (on Windows)
         if: matrix.os == 'windows-latest'
