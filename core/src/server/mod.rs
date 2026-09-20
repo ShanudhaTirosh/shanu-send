@@ -211,6 +211,8 @@ pub async fn serve_tls(
 
 pub fn build_router(state: Arc<ServerState>) -> Router {
     Router::new()
+        .route("/", get(webdrop_page_handler))
+        .route("/web", get(webdrop_page_handler))
         .route("/api/localsend/v2/info", get(info_handler))
         .route("/api/localsend/v2/register", post(register_handler))
         .route(
@@ -221,6 +223,7 @@ pub fn build_router(state: Arc<ServerState>) -> Router {
         .route("/api/localsend/v2/cancel", post(cancel_handler))
         .route("/webdrop", get(webdrop_page_handler))
         .route("/api/webdrop/upload", post(webdrop_upload_handler))
+        .route("/api/webdrop/text", post(webdrop_text_handler))
         .with_state(state)
 }
 
@@ -458,6 +461,37 @@ async fn webdrop_upload_handler(
     }
 
     Ok(StatusCode::OK)
+}
+
+#[derive(Debug, Deserialize)]
+struct WebdropTextPayload {
+    text: String,
+}
+
+async fn webdrop_text_handler(
+    State(state): State<Arc<ServerState>>,
+    Json(payload): Json<WebdropTextPayload>,
+) -> StatusCode {
+    if payload.text.trim().is_empty() {
+        return StatusCode::BAD_REQUEST;
+    }
+    let session_id = Uuid::new_v4().to_string();
+    let file_id = Uuid::new_v4().to_string();
+    let save_dir = state.save_dir.lock().await.clone();
+    let _ = tokio::fs::create_dir_all(&save_dir).await;
+    let file_path = save_dir.join(format!("shared_note_{}.txt", &session_id[..8]));
+    let _ = tokio::fs::write(&file_path, payload.text.as_bytes()).await;
+
+    let _ = state
+        .events
+        .send(ServerEvent::UploadComplete {
+            session_id,
+            file_id,
+            saved_path: file_path,
+        })
+        .await;
+
+    StatusCode::OK
 }
 
 async fn upload_handler(

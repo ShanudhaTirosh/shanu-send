@@ -100,6 +100,45 @@ export async function sendFiles(
   onEvent({ type: "AllDone" });
 }
 
+export async function pickFilesToTransfer(): Promise<LocalFileInput[]> {
+  if (isTauri) {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const selected = await open({
+      multiple: true,
+      directory: false,
+      title: "Select Files to Send",
+    });
+    if (!selected) return [];
+    const paths = Array.isArray(selected) ? selected : [selected];
+    return paths.map((p) => {
+      const pathStr = typeof p === "string" ? p : (p as any).path;
+      const fileName = pathStr.split(/[/\\]/).pop() || pathStr;
+      return {
+        id: crypto.randomUUID(),
+        path: pathStr,
+        file_name: fileName,
+        size: 0,
+        mime: "application/octet-stream",
+      };
+    });
+  }
+  return [];
+}
+
+export async function onNativeFileDrop(
+  onPaths: (paths: string[]) => void,
+): Promise<() => void> {
+  if (isTauri) {
+    return realListen<any>("tauri://drag-drop", (payload) => {
+      const paths = Array.isArray(payload)
+        ? payload
+        : (payload?.paths || []);
+      if (paths.length > 0) onPaths(paths);
+    });
+  }
+  return () => {};
+}
+
 export interface LocalFileInput {
   id: string;
   path: string;
@@ -165,12 +204,13 @@ export interface SelfInfo {
   alias: string;
   fingerprint: string;
   port: number;
+  local_ip: string;
 }
 
 export async function getSelfInfo(): Promise<SelfInfo> {
   if (isTauri) return realInvoke<SelfInfo>("get_self_info");
   await delay(100);
-  return { alias: "ShanuSend Device", fingerprint: "mock-fingerprint", port: 53317 };
+  return { alias: "ShanuSend Device", fingerprint: "mock-fingerprint", port: 53317, local_ip: "127.0.0.1" };
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -359,6 +399,49 @@ export async function shanuconnectMprisControl(action: string, volume?: number):
   }
 }
 
+export async function shanuconnectSendSystemVolume(volume: number): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_send_system_volume", { volume });
+  }
+}
+
+export async function shanuconnectSendClipboard(content: string): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_send_clipboard", { content });
+  }
+}
+
+export async function shanuconnectSendPair(pair: boolean): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_send_pair", { pair });
+  }
+}
+
+export async function shanuconnectReplyNotification(
+  notificationId: string,
+  replyMessage: string,
+): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_reply_notification", { notificationId, replyMessage });
+  }
+}
+
+export async function shanuconnectTelephonyAction(
+  action: string,
+  phoneNumber?: string,
+  message?: string,
+): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_telephony_action", { action, phoneNumber, message });
+  }
+}
+
+export async function shanuconnectRequestSftp(path?: string): Promise<void> {
+  if (isTauri) {
+    await realInvoke("shanuconnect_request_sftp", { path });
+  }
+}
+
 export interface ShanuConnectEventPayload {
   type: string;
   body: any;
@@ -394,6 +477,25 @@ export async function scrcpyCheckInstalled(): Promise<boolean> {
   return true;
 }
 
+export interface ScrcpyDownloadProgress {
+  percent: number;
+  status: string;
+}
+
+export async function scrcpyDownloadDependencies(): Promise<string> {
+  if (isTauri) return realInvoke<string>("scrcpy_download_dependencies");
+  return "Scrcpy & ADB tools installed automatically!";
+}
+
+export async function onScrcpyDownloadProgress(
+  handler: (payload: ScrcpyDownloadProgress) => void,
+): Promise<() => void> {
+  if (isTauri) {
+    return realListen<ScrcpyDownloadProgress>("scrcpy-download-progress", handler);
+  }
+  return () => {};
+}
+
 export async function scrcpyListAdbDevices(): Promise<AdbDevice[]> {
   if (isTauri) return realInvoke<AdbDevice[]>("scrcpy_list_adb_devices");
   return [];
@@ -409,9 +511,55 @@ export async function scrcpyAdbPair(address: string, code: string): Promise<stri
   return `paired with ${address}`;
 }
 
-export async function scrcpyStartMirror(deviceId?: string, maxSize?: number, bitRate?: number): Promise<string> {
-  if (isTauri) return realInvoke<string>("scrcpy_start_mirror", { deviceId, maxSize, bitRate });
+export interface ScrcpyOptions {
+  deviceId?: string;
+  maxSize?: number;
+  bitRate?: number;
+  fps?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+  cameraMode?: boolean;
+  cameraFacing?: string;
+  stayAwake?: boolean;
+  turnScreenOff?: boolean;
+  showTouches?: boolean;
+  otgMode?: boolean;
+  record?: boolean;
+}
+
+export async function scrcpyStartMirror(options: ScrcpyOptions = {}): Promise<string> {
+  if (isTauri) {
+    return realInvoke<string>("scrcpy_start_mirror", {
+      deviceId: options.deviceId,
+      maxSize: options.maxSize,
+      bitRate: options.bitRate,
+      fps: options.fps,
+      videoCodec: options.videoCodec,
+      audioCodec: options.audioCodec,
+      cameraMode: options.cameraMode,
+      cameraFacing: options.cameraFacing,
+      stayAwake: options.stayAwake,
+      turnScreenOff: options.turnScreenOff,
+      showTouches: options.showTouches,
+      otgMode: options.otgMode,
+      record: options.record,
+    });
+  }
   return "Scrcpy process launched (Mock)";
+}
+
+export async function scrcpyAdbSendKeyevent(deviceId: string | undefined, keycode: number): Promise<string> {
+  if (isTauri) {
+    return realInvoke<string>("scrcpy_adb_send_keyevent", { deviceId, keycode });
+  }
+  return `Triggered keyevent ${keycode}`;
+}
+
+export async function scrcpyAdbShell(deviceId: string | undefined, command: string): Promise<string> {
+  if (isTauri) {
+    return realInvoke<string>("scrcpy_adb_shell", { deviceId, command });
+  }
+  return `Executed shell command ${command}`;
 }
 
 export async function quickshareGenerateUkey2Pin(): Promise<string> {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Monitor,
   Video,
@@ -11,11 +11,25 @@ import {
   Radio,
   FileDown,
   Sparkles,
-  Disc
+  Disc,
+  Terminal,
+  Zap,
+  Download,
+  AlertCircle,
 } from "lucide-react";
 import type { Device } from "../../types";
 
-import { scrcpyAdbPair, scrcpyAdbConnect, scrcpyStartMirror } from "../../lib/tauri";
+import {
+  scrcpyAdbPair,
+  scrcpyAdbConnect,
+  scrcpyStartMirror,
+  scrcpyAdbSendKeyevent,
+  scrcpyAdbShell,
+  scrcpyCheckInstalled,
+  scrcpyDownloadDependencies,
+  onScrcpyDownloadProgress,
+  type ScrcpyDownloadProgress,
+} from "../../lib/tauri";
 
 interface ScreenMirrorModalProps {
   open: boolean;
@@ -23,12 +37,20 @@ interface ScreenMirrorModalProps {
   selectedDevice: Device | null;
 }
 
-type TabType = "display" | "audio" | "camera" | "adb";
+type TabType = "display" | "audio" | "camera" | "presets" | "adb" | "logs";
 
 export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirrorModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>("display");
   const [isMirroring, setIsMirroring] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+
+  // Auto-Installer State
+  const [isEngineInstalled, setIsEngineInstalled] = useState<boolean | null>(null);
+  const [isDownloadingEngine, setIsDownloadingEngine] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<ScrcpyDownloadProgress>({
+    percent: 0,
+    status: "",
+  });
 
   // Video Options
   const [videoCodec, setVideoCodec] = useState("h264");
@@ -58,7 +80,47 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
   const [pairingCode, setPairingCode] = useState("");
   const [adbStatus, setAdbStatus] = useState<string | null>(null);
 
+  // Terminal & Logs
+  const [logs, setLogs] = useState<string[]>([
+    "[SYSTEM] Scrcpy Pro Suite Engine initialized.",
+    "[SYSTEM] Ready for ADB connection & screen mirroring session.",
+  ]);
+
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    scrcpyCheckInstalled().then((installed) => {
+      setIsEngineInstalled(installed);
+    });
+
+    let unlisten: (() => void) | undefined;
+    onScrcpyDownloadProgress((payload) => {
+      setDownloadProgress(payload);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [open]);
+
+  const handleAutoInstall = async () => {
+    setIsDownloadingEngine(true);
+    addLog("Initiating automated Scrcpy & ADB Pro Engine download...");
+    try {
+      const result = await scrcpyDownloadDependencies();
+      setIsEngineInstalled(true);
+      setIsDownloadingEngine(false);
+      showActionFeedback("Scrcpy & ADB Engine Installed Successfully!");
+      addLog(`[SUCCESS] ${result}`);
+    } catch (err: any) {
+      setIsDownloadingEngine(false);
+      showActionFeedback(`Install failed: ${err}`);
+      addLog(`[ERROR] Auto-installation failed: ${err}`);
+    }
+  };
 
   if (!open) return null;
 
@@ -67,32 +129,126 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
     setTimeout(() => setFeedback(null), 2500);
   };
 
+  const addLog = (msg: string) => {
+    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
   const handlePairAdb = async () => {
     if (!adbIp || !pairingCode) return;
     setAdbStatus("Pairing with Wireless ADB...");
+    addLog(`Pairing with Wireless ADB at ${adbIp}:${adbPort}...`);
     try {
       const targetAddr = `${adbIp}:${adbPort}`;
       const pairRes = await scrcpyAdbPair(targetAddr, pairingCode);
       setAdbStatus(`Paired: ${pairRes}. Connecting...`);
+      addLog(`Paired successfully: ${pairRes}`);
       const connRes = await scrcpyAdbConnect(targetAddr);
       setAdbStatus(`Connected: ${connRes}`);
+      addLog(`ADB Wireless Connection: ${connRes}`);
     } catch (err) {
       setAdbStatus(`ADB Error: ${err}`);
+      addLog(`[ERROR] ADB Pairing failed: ${err}`);
     }
+  };
+
+  const handleSendKey = async (keycode: number, label: string) => {
+    try {
+      await scrcpyAdbSendKeyevent(selectedDevice?.ip || undefined, keycode);
+      showActionFeedback(`Triggered ${label}`);
+      addLog(`ADB Keyevent sent: ${label} (Keycode ${keycode})`);
+    } catch (e: any) {
+      showActionFeedback(`Keyevent Error: ${e}`);
+      addLog(`[ERROR] Keyevent failed: ${e}`);
+    }
+  };
+
+  const handleTakeScreenshot = async () => {
+    try {
+      await scrcpyAdbShell(
+        selectedDevice?.ip || undefined,
+        "screencap -p /sdcard/Download/screenshot.png"
+      );
+      showActionFeedback("Screenshot saved to phone Downloads!");
+      addLog("Captured screenshot to /sdcard/Download/screenshot.png");
+    } catch (e: any) {
+      showActionFeedback(`Screenshot Error: ${e}`);
+      addLog(`[ERROR] Screenshot failed: ${e}`);
+    }
+  };
+
+  const applyPreset = (presetName: string) => {
+    if (presetName === "1080p") {
+      setResolution("1080p");
+      setBitrate("16");
+      setFps("60");
+      setVideoCodec("h264");
+      setCameraMode(false);
+      setOtgMode(false);
+    } else if (presetName === "1440p") {
+      setResolution("native");
+      setBitrate("24");
+      setFps("60");
+      setVideoCodec("h265");
+      setCameraMode(false);
+      setOtgMode(false);
+    } else if (presetName === "4k") {
+      setResolution("native");
+      setBitrate("32");
+      setFps("60");
+      setVideoCodec("h265");
+      setCameraMode(false);
+      setOtgMode(false);
+    } else if (presetName === "gaming") {
+      setResolution("720p");
+      setBitrate("12");
+      setFps("120");
+      setVideoCodec("h264");
+      setCameraMode(false);
+      setOtgMode(false);
+    } else if (presetName === "webcam") {
+      setCameraMode(true);
+      setResolution("1080p");
+      setBitrate("16");
+      setFps("60");
+      setCameraFacing("back");
+    } else if (presetName === "otg") {
+      setOtgMode(true);
+      setCameraMode(false);
+    }
+    showActionFeedback(`Applied ${presetName.toUpperCase()} Preset`);
+    addLog(`Applied Quick Preset: ${presetName.toUpperCase()}`);
   };
 
   const toggleMirror = async () => {
     if (!isMirroring) {
       try {
-        const res = await scrcpyStartMirror(selectedDevice?.ip || undefined, parseInt(resolution) || 1080, parseInt(bitrate) * 1000000);
+        addLog(`Launching scrcpy session... Resolution: ${resolution}, Bitrate: ${bitrate}Mbps, FPS: ${fps}`);
+        const res = await scrcpyStartMirror({
+          deviceId: selectedDevice?.ip || undefined,
+          maxSize: parseInt(resolution) || 1080,
+          bitRate: parseInt(bitrate),
+          fps: parseInt(fps),
+          videoCodec,
+          audioCodec,
+          cameraMode,
+          cameraFacing,
+          stayAwake,
+          turnScreenOff,
+          showTouches,
+          otgMode,
+          record: isRecording,
+        });
         setIsMirroring(true);
         showActionFeedback(res);
+        addLog(`Scrcpy process active: ${res}`);
       } catch (e: any) {
         showActionFeedback(`Scrcpy Error: ${e}`);
+        addLog(`[ERROR] Scrcpy launch failed: ${e}`);
       }
     } else {
       setIsMirroring(false);
       showActionFeedback("Mirror session ended.");
+      addLog("Scrcpy mirror session ended.");
     }
   };
 
@@ -107,9 +263,14 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
             </div>
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Scrcpy Pro Suite <span className="rounded-full bg-neon-violet/10 px-2 py-0.5 text-[10px] font-semibold text-neon-violet border border-neon-violet/20">v4 Engine</span>
+                Scrcpy Pro Suite{" "}
+                <span className="rounded-full bg-neon-violet/10 px-2 py-0.5 text-[10px] font-semibold text-neon-violet border border-neon-violet/20">
+                  v4 Engine
+                </span>
               </h2>
-              <p className="text-xs text-slate-400">Full Audio & Video Mirroring, Pro Webcam Mode, OTG Input & Wireless ADB</p>
+              <p className="text-xs text-slate-400">
+                Full Audio & Video Mirroring, Pro Webcam Mode, OTG Peripherals & Wireless ADB
+              </p>
             </div>
           </div>
 
@@ -119,81 +280,159 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 {feedback}
               </span>
             )}
-            <button onClick={onClose} className="rounded-xl p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
+            <button
+              onClick={onClose}
+              className="rounded-xl p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+            >
               <X size={20} />
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="my-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-glass">
+        <div className="my-4 flex gap-1.5 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-glass overflow-x-auto">
           <button
             onClick={() => setActiveTab("display")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition ${
-              activeTab === "display" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "display"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Sliders size={14} />
             <span>Video & Graphics</span>
           </button>
+
           <button
             onClick={() => setActiveTab("audio")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition ${
-              activeTab === "audio" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "audio"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Volume2 size={14} />
-            <span>Audio Forwarding</span>
+            <span>Audio Stream</span>
           </button>
+
           <button
             onClick={() => setActiveTab("camera")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition ${
-              activeTab === "camera" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "camera"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Camera size={14} />
-            <span>Pro Webcam Mode</span>
+            <span>Pro Webcam</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("presets")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "presets"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Zap size={14} />
+            <span>Presets</span>
+          </button>
+
           <button
             onClick={() => setActiveTab("adb")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition ${
-              activeTab === "adb" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "adb"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Radio size={14} />
             <span>Wireless ADB</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("logs")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition ${
+              activeTab === "logs"
+                ? "bg-white/15 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Terminal size={14} />
+            <span>Console</span>
+          </button>
         </div>
 
         {/* Main Workspace Body */}
-        <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-[1fr_320px]">
+        <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-[1fr_340px]">
           {/* Mirror Canvas & Pro Navigation Dock */}
           <div className="flex flex-col gap-3 overflow-hidden">
-            {/* Mirror Stream Display */}
-            <div className="relative flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-void-900/90 overflow-hidden">
-              {isMirroring ? (
-                <div className="flex flex-col items-center gap-3 text-neon-cyan animate-pulse">
-                  <Video size={48} />
-                  <div className="text-center">
-                    <p className="text-sm font-bold">Active Mirror Stream &middot; {resolution}</p>
-                    <p className="text-xs text-slate-400">
-                      {fps} FPS &middot; {bitrate} Mbps &middot; Codec: {videoCodec.toUpperCase()} &middot; Audio: {audioCodec.toUpperCase()}
+            {/* Mirror Stream Display / Auto Install Banner */}
+            <div className="relative flex flex-1 items-center justify-center rounded-2xl border border-white/10 bg-void-900/90 overflow-hidden p-6">
+              {isEngineInstalled === false && (
+                <div className="flex flex-col items-center text-center max-w-md gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <AlertCircle size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Scrcpy & ADB Engine Needed</h3>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                      To mirror your screen and control your Android device, ShanuSend will automatically download and configure official Scrcpy & ADB binaries directly into your application directory.
                     </p>
                   </div>
-                  {isRecording && (
-                    <span className="flex items-center gap-1.5 rounded-full bg-pink-500/20 px-3 py-1 text-xs font-bold text-pink-400 border border-pink-500/40">
-                      <Disc size={12} className="animate-spin" /> RECORDING MP4
-                    </span>
+                  {isDownloadingEngine ? (
+                    <div className="w-full mt-2 flex flex-col gap-2">
+                      <div className="flex justify-between text-xs font-semibold text-neon-cyan">
+                        <span>{downloadProgress.status || "Downloading..."}</span>
+                        <span>{Math.round(downloadProgress.percent)}%</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full bg-gradient-to-r from-neon-cyan to-neon-violet transition-all duration-300"
+                          style={{ width: `${downloadProgress.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleAutoInstall}
+                      className="glass-button-primary mt-2 py-2.5 px-5 text-xs font-bold flex items-center gap-2 shadow-glow"
+                    >
+                      <Download size={16} />
+                      <span>Auto Download & Setup Engine (1-Click)</span>
+                    </button>
                   )}
                 </div>
-              ) : (
-                <div className="text-center p-6">
-                  <Monitor className="mx-auto mb-3 text-slate-600" size={40} />
-                  <p className="text-sm font-semibold text-slate-300">Screen Mirror Offline</p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                    Select your preferred codec & resolution settings, then click Start Mirroring below.
-                  </p>
-                </div>
+              )}
+
+              {isEngineInstalled !== false && (
+                <>
+                  {isMirroring ? (
+                    <div className="flex flex-col items-center gap-3 text-neon-cyan animate-pulse">
+                      <Video size={48} />
+                      <div className="text-center">
+                        <p className="text-sm font-bold">Active Mirror Stream &middot; {resolution}</p>
+                        <p className="text-xs text-slate-400">
+                          {fps} FPS &middot; {bitrate} Mbps &middot; Codec: {videoCodec.toUpperCase()} &middot; Audio: {audioCodec.toUpperCase()}
+                        </p>
+                      </div>
+                      {isRecording && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-pink-500/20 px-3 py-1 text-xs font-bold text-pink-400 border border-pink-500/40">
+                          <Disc size={12} className="animate-spin" /> RECORDING MP4
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6">
+                      <Monitor className="mx-auto mb-3 text-slate-600" size={40} />
+                      <p className="text-sm font-semibold text-slate-300">Screen Mirror Offline</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                        Select your preferred codec & resolution settings, then click Start Mirror Session below.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -202,7 +441,7 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
               <div className="flex items-center gap-1">
                 <button
                   disabled={!isMirroring}
-                  onClick={() => showActionFeedback("Triggered Back button")}
+                  onClick={() => handleSendKey(4, "Back button")}
                   className="glass-button text-xs py-1.5 px-3"
                   title="Android Back"
                 >
@@ -210,7 +449,7 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 </button>
                 <button
                   disabled={!isMirroring}
-                  onClick={() => showActionFeedback("Triggered Home button")}
+                  onClick={() => handleSendKey(3, "Home button")}
                   className="glass-button text-xs py-1.5 px-3"
                   title="Android Home"
                 >
@@ -218,7 +457,7 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 </button>
                 <button
                   disabled={!isMirroring}
-                  onClick={() => showActionFeedback("Opened App Switcher")}
+                  onClick={() => handleSendKey(187, "App Switcher")}
                   className="glass-button text-xs py-1.5 px-3"
                   title="App Switcher"
                 >
@@ -229,7 +468,7 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
               <div className="flex items-center gap-1">
                 <button
                   disabled={!isMirroring}
-                  onClick={() => showActionFeedback("Captured Screenshot")}
+                  onClick={handleTakeScreenshot}
                   className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 hover:bg-white/15 text-slate-300"
                   title="Take Screenshot"
                 >
@@ -280,7 +519,9 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 </div>
 
                 <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <label className="text-xs font-semibold text-slate-300">Video Bitrate ({bitrate} Mbps)</label>
+                  <label className="text-xs font-semibold text-slate-300">
+                    Video Bitrate ({bitrate} Mbps)
+                  </label>
                   <input
                     type="range"
                     min="4"
@@ -310,22 +551,40 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 </div>
 
                 <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <label className="text-xs font-semibold text-slate-300">Display Controls & Hardware OTG</label>
+                  <label className="text-xs font-semibold text-slate-300">
+                    Display Controls & Hardware OTG
+                  </label>
                   <label className="flex items-center justify-between text-xs text-slate-400 cursor-pointer">
                     <span>Stay Awake while Mirroring</span>
-                    <input type="checkbox" checked={stayAwake} onChange={(e) => setStayAwake(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={stayAwake}
+                      onChange={(e) => setStayAwake(e.target.checked)}
+                    />
                   </label>
                   <label className="flex items-center justify-between text-xs text-slate-400 cursor-pointer">
                     <span>Turn Screen Off while Mirroring</span>
-                    <input type="checkbox" checked={turnScreenOff} onChange={(e) => setTurnScreenOff(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={turnScreenOff}
+                      onChange={(e) => setTurnScreenOff(e.target.checked)}
+                    />
                   </label>
                   <label className="flex items-center justify-between text-xs text-slate-400 cursor-pointer">
                     <span>Show Visual Touch Feedback</span>
-                    <input type="checkbox" checked={showTouches} onChange={(e) => setShowTouches(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={showTouches}
+                      onChange={(e) => setShowTouches(e.target.checked)}
+                    />
                   </label>
                   <label className="flex items-center justify-between text-xs text-slate-400 cursor-pointer">
                     <span>OTG Hardware Mouse & Keyboard</span>
-                    <input type="checkbox" checked={otgMode} onChange={(e) => setOtgMode(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={otgMode}
+                      onChange={(e) => setOtgMode(e.target.checked)}
+                    />
                   </label>
                 </div>
               </>
@@ -334,7 +593,9 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
             {activeTab === "audio" && (
               <>
                 <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <label className="text-xs font-semibold text-slate-300">Audio Codec (Android 11+)</label>
+                  <label className="text-xs font-semibold text-slate-300">
+                    Audio Codec (Android 11+)
+                  </label>
                   <select
                     value={audioCodec}
                     onChange={(e) => setAudioCodec(e.target.value)}
@@ -366,7 +627,11 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
               <>
                 <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
                   <span className="text-xs font-semibold text-slate-200">Enable Pro Webcam Mode</span>
-                  <input type="checkbox" checked={cameraMode} onChange={(e) => setCameraMode(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={cameraMode}
+                    onChange={(e) => setCameraMode(e.target.checked)}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/5 p-3">
@@ -385,7 +650,9 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                   <span className="text-xs font-semibold text-slate-200">Torch / Flashlight</span>
                   <button
                     onClick={() => setTorchEnabled(!torchEnabled)}
-                    className={`glass-button text-xs py-1 px-3 ${torchEnabled ? "border-amber-500/50 bg-amber-500/20 text-amber-300" : ""}`}
+                    className={`glass-button text-xs py-1 px-3 ${
+                      torchEnabled ? "border-amber-500/50 bg-amber-500/20 text-amber-300" : ""
+                    }`}
                   >
                     <Sun size={14} />
                     <span>{torchEnabled ? "Flash ON" : "Flash OFF"}</span>
@@ -407,10 +674,61 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
               </>
             )}
 
+            {activeTab === "presets" && (
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-semibold text-slate-200">Quick Configuration Presets</span>
+                <button
+                  onClick={() => applyPreset("1080p")}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 hover:border-neon-cyan/40 transition text-left"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-white">1080p Balanced</p>
+                    <p className="text-[11px] text-slate-400">1080p &middot; 16Mbps &middot; 60 FPS &middot; H.264</p>
+                  </div>
+                  <Zap size={16} className="text-neon-cyan" />
+                </button>
+
+                <button
+                  onClick={() => applyPreset("1440p")}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 hover:border-neon-cyan/40 transition text-left"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-white">1440p High Quality</p>
+                    <p className="text-[11px] text-slate-400">Native &middot; 24Mbps &middot; 60 FPS &middot; H.265</p>
+                  </div>
+                  <Zap size={16} className="text-neon-violet" />
+                </button>
+
+                <button
+                  onClick={() => applyPreset("gaming")}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 hover:border-neon-cyan/40 transition text-left"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-white">120 FPS High Refresh Gaming</p>
+                    <p className="text-[11px] text-slate-400">720p &middot; 12Mbps &middot; 120 FPS &middot; Low Latency</p>
+                  </div>
+                  <Zap size={16} className="text-amber-400" />
+                </button>
+
+                <button
+                  onClick={() => applyPreset("webcam")}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 hover:border-neon-cyan/40 transition text-left"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-white">Pro Webcam Feed</p>
+                    <p className="text-[11px] text-slate-400">Rear Camera &middot; 1080p &middot; OBS Ready</p>
+                  </div>
+                  <Camera size={16} className="text-emerald-400" />
+                </button>
+              </div>
+            )}
+
             {activeTab === "adb" && (
               <>
                 <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <span className="text-xs font-semibold text-slate-200">Android 11+ Wireless ADB Pairing</span>
+                  <span className="text-xs font-semibold text-slate-200">
+                    Android 11+ Wireless ADB Pairing
+                  </span>
                   <input
                     type="text"
                     value={adbIp}
@@ -448,6 +766,27 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
                 </div>
               </>
             )}
+
+            {activeTab === "logs" && (
+              <div className="flex flex-col gap-2 h-full">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-200">Live Scrcpy Terminal Output</span>
+                  <button
+                    onClick={() => setLogs([])}
+                    className="text-[11px] text-slate-400 hover:text-white"
+                  >
+                    Clear Log
+                  </button>
+                </div>
+                <div className="flex-1 rounded-xl border border-white/10 bg-void-950 p-3 font-mono text-[11px] text-neon-cyan/90 overflow-y-auto max-h-[300px]">
+                  {logs.map((log, idx) => (
+                    <p key={idx} className="leading-relaxed">
+                      {log}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -463,7 +802,9 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
             <button
               onClick={toggleMirror}
               className={`glass-button-primary text-xs ${
-                isMirroring ? "from-pink-500/30 to-purple-600/30 border-pink-500/50 text-pink-300" : ""
+                isMirroring
+                  ? "from-pink-500/30 to-purple-600/30 border-pink-500/50 text-pink-300"
+                  : ""
               }`}
             >
               <Play size={14} />

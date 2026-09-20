@@ -54,12 +54,15 @@ class ShanuConnectService {
           'shanuconnect.mousepad',
           'shanuconnect.mpris',
           'shanuconnect.notifications',
+          'shanuconnect.notifications.reply',
           'shanuconnect.ping',
           'shanuconnect.presenter',
           'shanuconnect.runcommand',
           'shanuconnect.sms',
           'shanuconnect.systemvolume',
           'shanuconnect.lockdevice',
+          'shanuconnect.telephony',
+          'shanuconnect.sftp',
         ],
         'outgoingCapabilities': [
           'shanuconnect.battery',
@@ -67,12 +70,15 @@ class ShanuConnectService {
           'shanuconnect.mousepad',
           'shanuconnect.mpris',
           'shanuconnect.notifications',
+          'shanuconnect.notifications.reply',
           'shanuconnect.ping',
           'shanuconnect.presenter',
           'shanuconnect.runcommand',
           'shanuconnect.sms',
           'shanuconnect.systemvolume',
           'shanuconnect.lockdevice',
+          'shanuconnect.telephony',
+          'shanuconnect.sftp',
         ],
         'tcpPort': tcpPort,
       }
@@ -90,6 +96,41 @@ class ShanuConnectService {
     } catch (e) {
       debugPrint('ShanuConnect packet send error: $e');
     }
+  }
+
+  void sendNotificationReply(String notificationId, String replyMessage, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.notifications.reply',
+      'body': {
+        'notificationId': notificationId,
+        'replyMessage': replyMessage,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendTelephonyCallAction(String action, String phoneNumber, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.telephony',
+      'body': {
+        'action': action,
+        'phoneNumber': phoneNumber,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendSftpRequest(String path, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.sftp',
+      'body': {
+        'path': path,
+      }
+    };
+    sendPacket(packet, targetIp);
   }
 
   void sendMousepad(double dx, double dy, {String? click, String? targetIp}) {
@@ -140,6 +181,39 @@ class ShanuConnectService {
       'type': 'shanuconnect.presenter',
       'body': {
         if (next) 'next': true else 'prev': true,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendLockDevice({required bool lock, String? targetIp}) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.lockdevice',
+      'body': {
+        'isLocked': lock,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendClipboardText(String text, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.clipboard',
+      'body': {
+        'content': text,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendSystemVolume(double volume, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.systemvolume',
+      'body': {
+        'volume': volume.toInt(),
       }
     };
     sendPacket(packet, targetIp);

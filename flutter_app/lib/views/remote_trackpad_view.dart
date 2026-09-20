@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
+import '../services/shanu_connect_service.dart';
 
 class RemoteTrackpadView extends StatefulWidget {
-  const RemoteTrackpadView({super.key});
+  final String? targetIp;
+  const RemoteTrackpadView({super.key, this.targetIp});
 
   @override
   State<RemoteTrackpadView> createState() => _RemoteTrackpadViewState();
 }
 
 class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
+  final ShanuConnectService _shanuService = ShanuConnectService();
   Offset? _lastPosition;
   String _statusMsg = 'Drag to move cursor';
+
+  @override
+  void initState() {
+    super.initState();
+    _shanuService.startDiscovery('Trackpad Remote', 'trackpad-remote-id');
+  }
+
+  @override
+  void dispose() {
+    _shanuService.stop();
+    super.dispose();
+  }
 
   void _onPanStart(DragStartDetails details) {
     _lastPosition = details.localPosition;
@@ -22,7 +37,7 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
       _lastPosition = details.localPosition;
 
       if (dx.abs() > 0.5 || dy.abs() > 0.5) {
-        // Trackpad delta movement processed
+        _shanuService.sendMousepad(dx, dy, targetIp: widget.targetIp);
       }
     }
   }

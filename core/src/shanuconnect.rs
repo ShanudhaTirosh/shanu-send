@@ -328,6 +328,37 @@ pub struct ShanuTelephonyPayload {
 
 pub type KdeTelephonyPayload = ShanuTelephonyPayload;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShanuNotificationReplyPayload {
+    pub notification_id: String,
+    pub reply_message: String,
+}
+
+pub type KdeNotificationReplyPayload = ShanuNotificationReplyPayload;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShanuCallActionPayload {
+    pub action: String,
+    pub phone_number: Option<String>,
+    pub message: Option<String>,
+}
+
+pub type KdeCallActionPayload = ShanuCallActionPayload;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShanuRemoteFileItem {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub path: String,
+    pub mime_type: Option<String>,
+}
+
+pub type KdeRemoteFileItem = ShanuRemoteFileItem;
+
 // ============================================================================
 // 18. SYSTEM VOLUME CONTROL (`shanuconnect.systemvolume`)
 // ============================================================================
@@ -536,6 +567,27 @@ impl ShanuConnectEngine {
         if p_type == "shanuconnect.notifications" || p_type == "kdeconnect.notifications" {
             if let Ok(notif) = serde_json::from_value::<ShanuNotificationPayload>(packet.body) {
                 info!("ShanuConnect Notification: [{}] {}: {}", notif.app_name, notif.title, notif.body);
+            }
+            return None;
+        }
+
+        if p_type == "shanuconnect.notifications.reply" || p_type == "kdeconnect.notifications.reply" {
+            if let Ok(reply) = serde_json::from_value::<ShanuNotificationReplyPayload>(packet.body) {
+                info!("ShanuConnect Notification Reply sent for id {}: {}", reply.notification_id, reply.reply_message);
+            }
+            return None;
+        }
+
+        if p_type == "shanuconnect.telephony" || p_type == "kdeconnect.telephony" {
+            if let Ok(telephony) = serde_json::from_value::<ShanuTelephonyPayload>(packet.body) {
+                info!("ShanuConnect Telephony Event: {} ({:?})", telephony.event, telephony.contact_name);
+            }
+            return None;
+        }
+
+        if p_type == "shanuconnect.telephony.action" || p_type == "kdeconnect.telephony.action" {
+            if let Ok(call_action) = serde_json::from_value::<ShanuCallActionPayload>(packet.body) {
+                info!("ShanuConnect Call Action: {} on {:?}", call_action.action, call_action.phone_number);
             }
             return None;
         }

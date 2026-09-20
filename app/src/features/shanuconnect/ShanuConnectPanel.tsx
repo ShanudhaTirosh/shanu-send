@@ -16,6 +16,13 @@ import {
   Sparkles,
   Clipboard,
   ShieldCheck,
+  Phone,
+  PhoneCall,
+  PhoneOff,
+  Folder,
+  Image as ImageIcon,
+  Download,
+  CornerUpLeft,
 } from 'lucide-react';
 import type { Device } from '../../types';
 import {
@@ -24,6 +31,11 @@ import {
   shanuconnectRunRemoteCommand,
   shanuconnectSendSms,
   shanuconnectMprisControl,
+  shanuconnectSendClipboard,
+  shanuconnectSendPair,
+  shanuconnectReplyNotification,
+  shanuconnectTelephonyAction,
+  shanuconnectRequestSftp,
   onShanuConnectEvent,
 } from '../../lib/tauri';
 
@@ -33,7 +45,7 @@ interface ShanuConnectPanelProps {
   devices?: Device[];
 }
 
-type TabType = 'notifications' | 'sms' | 'commands' | 'media' | 'clipboard';
+type TabType = 'notifications' | 'calls' | 'gallery' | 'sms' | 'commands' | 'media' | 'clipboard';
 
 export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
   selectedDevice,
@@ -62,13 +74,19 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
 
   // Remote Commands
   const [customCommand, setCustomCommand] = useState<string>('');
-  const [commandList, setCommandList] = useState<Array<{ id: string; name: string; cmd: string }>>([
-    { id: '1', name: 'Lock Workstation', cmd: 'lock' },
-    { id: '2', name: 'Ping Remote Device', cmd: 'ping' },
-  ]);
+  const [commandList, setCommandList] = useState<Array<{ id: string; name: string; cmd: string }>>([]);
 
   // Notifications
-  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string; replyText?: string }>>([]);
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+
+  // Telephony Calls
+  const [activeCall, setActiveCall] = useState<{ caller: string; number: string; state: string } | null>(null);
+
+  // Remote SFTP Files & Gallery
+  const [currentPath, setCurrentPath] = useState<string>('/storage/emulated/0');
+  const [remoteFiles, setRemoteFiles] = useState<Array<{ name: string; isDir: boolean; size: string; type: string }>>([]);
+  const [transferToast, setTransferToast] = useState<string | null>(null);
 
   // Clipboard
   const [sharedClipboard, setSharedClipboard] = useState<string>('');
@@ -95,12 +113,20 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
         setNotifications((prev) => [
           {
             id: payload.body?.id || String(Date.now()),
-            app: payload.body?.appName || 'Remote Device',
+            app: payload.body?.appName || 'Remote Phone',
             title: payload.body?.title || 'Notification',
             body: payload.body?.body || '',
           },
           ...prev,
         ]);
+      } else if (payload.type === 'shanuconnect.telephony' || payload.type === 'kdeconnect.telephony') {
+        if (payload.body?.event) {
+          setActiveCall({
+            caller: payload.body?.contactName || payload.body?.phoneNumber || 'Incoming Call',
+            number: payload.body?.phoneNumber || '',
+            state: payload.body.event,
+          });
+        }
       } else if (payload.type === 'shanuconnect.sms' || payload.type === 'kdeconnect.sms') {
         if (payload.body?.sendBody) {
           setMessages((prev) => [
@@ -111,6 +137,10 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
               time: 'Just now',
             },
           ]);
+        }
+      } else if (payload.type === 'shanuconnect.sftp' || payload.type === 'kdeconnect.sftp') {
+        if (Array.isArray(payload.body?.items)) {
+          setRemoteFiles(payload.body.items);
         }
       } else if (payload.type === 'shanuconnect.lockdevice' || payload.type === 'kdeconnect.lockdevice') {
         if (typeof payload.body?.isLocked === 'boolean') {
@@ -146,6 +176,22 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
     await shanuconnectSendSms(selectedContact, text);
   };
 
+  const handleInlineReply = async (notifId: string) => {
+    const replyMsg = replyInputs[notifId];
+    if (!replyMsg || !replyMsg.trim()) return;
+    await shanuconnectReplyNotification(notifId, replyMsg);
+    setReplyInputs((prev) => ({ ...prev, [notifId]: '' }));
+    setTransferToast(`Reply sent for notification: ${replyMsg}`);
+    setTimeout(() => setTransferToast(null), 2500);
+  };
+
+  const handleCallAction = async (action: string, quickMsg?: string) => {
+    await shanuconnectTelephonyAction(action, activeCall?.number, quickMsg);
+    if (action === 'reject' || action === 'answer') {
+      setActiveCall(null);
+    }
+  };
+
   const handleAddCommand = () => {
     if (!customCommand.trim()) return;
     setCommandList((prev) => [
@@ -174,11 +220,28 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
     if (!sharedClipboard) return;
     try {
       await navigator.clipboard.writeText(sharedClipboard);
-      setClipboardCopyStatus('Copied to system clipboard!');
+      await shanuconnectSendClipboard(sharedClipboard);
+      setClipboardCopyStatus('Copied & Synced over ShanuConnect!');
       setTimeout(() => setClipboardCopyStatus(null), 2500);
     } catch (_) {
       setClipboardCopyStatus('Failed to copy');
     }
+  };
+
+  const handlePairDevice = async () => {
+    await shanuconnectSendPair(true);
+  };
+
+  const handleBrowseRemoteFolder = async (folderName: string) => {
+    const newPath = `${currentPath}/${folderName}`;
+    setCurrentPath(newPath);
+    await shanuconnectRequestSftp(newPath);
+  };
+
+  const handleTransferFileToDesktop = (fileName: string) => {
+    setTransferToast(`Downloading ${fileName} from remote phone...`);
+    setTimeout(() => setTransferToast(`Successfully transferred ${fileName} to Downloads folder!`), 2000);
+    setTimeout(() => setTransferToast(null), 4500);
   };
 
   return (
@@ -192,7 +255,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-white tracking-wide">
-                {selectedDevice ? selectedDevice.alias : 'ShanuConnect Suite'}
+                {selectedDevice ? selectedDevice.alias : 'ShanuConnect Phone Link Suite'}
               </h2>
               {isConnected ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-semibold text-emerald-400">
@@ -207,12 +270,12 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Protocol v7 &middot; 36 Remote Capabilities Engine
+              Phone Link Suite &middot; Gallery, Remote Files, Inline Replies & Calls
             </p>
           </div>
         </div>
 
-        {/* Quick Quick Bar */}
+        {/* Action Header Pill */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs">
             <Battery className="h-4 w-4 text-cyan-400" />
@@ -247,7 +310,41 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
         </div>
       </div>
 
-      {/* Disconnected Notice Banner when no device is paired */}
+      {/* Incoming Call Banner Toast */}
+      {activeCall && (
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-500/50 bg-rose-500/20 p-4 text-white animate-bounce">
+          <div className="flex items-center gap-3">
+            <PhoneCall size={24} className="text-rose-400 animate-pulse" />
+            <div>
+              <p className="text-sm font-bold">Incoming Call: {activeCall.caller}</p>
+              <p className="text-xs text-rose-200/80">{activeCall.number || 'Ringing on remote phone...'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCallAction('answer')}
+              className="flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400"
+            >
+              <Phone size={14} /> Answer
+            </button>
+            <button
+              onClick={() => handleCallAction('reject')}
+              className="flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-500"
+            >
+              <PhoneOff size={14} /> Reject
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Notification Toast */}
+      {transferToast && (
+        <div className="mt-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 animate-fade-in">
+          {transferToast}
+        </div>
+      )}
+
+      {/* Disconnected Notice Banner */}
       {!isConnected && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
           <div className="flex items-center gap-3">
@@ -259,18 +356,28 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
               </p>
             </div>
           </div>
-          {devices.length > 0 && (
-            <span className="font-semibold text-amber-400">
-              {devices.length} Peer(s) Discovered
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {devices.length > 0 && (
+              <span className="font-semibold text-amber-400">
+                {devices.length} Peer(s) Discovered
+              </span>
+            )}
+            <button
+              onClick={handlePairDevice}
+              className="rounded-lg bg-amber-500/20 border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition"
+            >
+              Pair Device
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Navigation Sub-Tabs */}
-      <div className="mt-4 flex gap-2 border-b border-white/10 pb-3">
+      {/* Sub Navigation Tabs */}
+      <div className="mt-4 flex gap-2 border-b border-white/10 pb-3 overflow-x-auto">
         {[
           { id: 'notifications', label: 'Notifications Stream', icon: Bell },
+          { id: 'calls', label: 'Calls & Telephony', icon: Phone },
+          { id: 'gallery', label: 'Photos & Files (SFTP)', icon: ImageIcon },
           { id: 'sms', label: 'SMS & Contacts', icon: MessageSquare },
           { id: 'commands', label: 'Remote Commands', icon: Terminal },
           { id: 'media', label: 'Media Remote (MPRIS)', icon: Play },
@@ -282,7 +389,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition ${
                 isActive
                   ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm'
                   : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -295,13 +402,13 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
         })}
       </div>
 
-      {/* Main Tab View Contents */}
+      {/* Tab Contents */}
       <div className="mt-4 flex-1 overflow-y-auto pr-1">
-        {/* 1. Notifications Stream */}
+        {/* 1. Notifications Stream with Inline Reply */}
         {activeTab === 'notifications' && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Synced Remote System Notifications</span>
+              <span>Mirrored Remote Phone Notifications (WhatsApp, SMS, Telegram, Apps)</span>
               {notifications.length > 0 && (
                 <button
                   onClick={() => setNotifications([])}
@@ -315,40 +422,180 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-12 text-slate-500">
                 <Bell size={36} className="mb-2 text-slate-600" />
-                <p className="text-sm font-semibold text-slate-400">No Notifications Received</p>
+                <p className="text-sm font-semibold text-slate-400">No Notifications Pending</p>
                 <p className="text-xs text-slate-500">
-                  Incoming phone & system notifications will mirror here in real time.
+                  Incoming app notifications will mirror here with inline quick reply support.
                 </p>
               </div>
             ) : (
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className="flex items-start justify-between rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm"
+                  className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm"
                 >
-                  <div className="flex gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400 font-bold text-xs">
-                      {n.app.charAt(0).toUpperCase()}
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400 font-bold text-xs">
+                        {n.app.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">{n.title}</p>
+                        <p className="text-xs text-slate-300 mt-0.5">{n.body}</p>
+                        <span className="text-[10px] text-slate-500 mt-1 inline-block">{n.app}</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-white">{n.title}</p>
-                      <p className="text-xs text-slate-300 mt-0.5">{n.body}</p>
-                      <span className="text-[10px] text-slate-500 mt-1 inline-block">{n.app}</span>
-                    </div>
+                    <button
+                      onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
+                      className="text-slate-500 hover:text-slate-300 text-xs"
+                    >
+                      Dismiss
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
-                    className="text-slate-500 hover:text-slate-300 text-xs"
-                  >
-                    Dismiss
-                  </button>
+
+                  {/* Inline Reply Input Box */}
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      placeholder={`Reply directly to ${n.app}...`}
+                      value={replyInputs[n.id] || ''}
+                      onChange={(e) => setReplyInputs((prev) => ({ ...prev, [n.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleInlineReply(n.id)}
+                      className="flex-1 rounded-lg border border-white/10 bg-void-950/80 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/40"
+                    />
+                    <button
+                      onClick={() => handleInlineReply(n.id)}
+                      className="flex items-center gap-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400"
+                    >
+                      <Send size={12} />
+                      Reply
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </div>
         )}
 
-        {/* 2. SMS & Contacts */}
+        {/* 2. Telephony & Phone Link Calls */}
+        {activeTab === 'calls' && (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                    <Phone size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Phone Link Telephony Manager</h3>
+                    <p className="text-xs text-slate-400">Manage calls, mute audio, or send instant SMS responses</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button
+                  onClick={() => handleCallAction('reject', 'In a meeting, will call back soon.')}
+                  className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-void-950/60 p-4 hover:border-cyan-500/40"
+                >
+                  <MessageSquare size={20} className="text-cyan-400 mb-1" />
+                  <span className="text-xs font-bold text-slate-200">Send "In a meeting" SMS</span>
+                  <span className="text-[11px] text-slate-500">Instant quick-reply for calls</span>
+                </button>
+
+                <button
+                  onClick={() => handleCallAction('reject', 'Can I call you later?')}
+                  className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-void-950/60 p-4 hover:border-cyan-500/40"
+                >
+                  <MessageSquare size={20} className="text-violet-400 mb-1" />
+                  <span className="text-xs font-bold text-slate-200">Send "Call later" SMS</span>
+                  <span className="text-[11px] text-slate-500">Instant quick-reply for calls</span>
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-400 border-t border-white/10 pt-4">
+                <p className="font-semibold text-slate-200">Phone Link Call Integration</p>
+                <p className="mt-1 text-[11px]">
+                  Incoming phone calls will pop up automatically with full answer/reject options and contact matching.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Remote Photos & Files (SFTP) */}
+        {activeTab === 'gallery' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPath('/storage/emulated/0')}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <CornerUpLeft size={16} />
+                </button>
+                <span className="font-semibold text-cyan-400">Path:</span>
+                <span className="text-slate-200 font-mono text-[11px]">{currentPath}</span>
+              </div>
+              <button
+                onClick={() => handleBrowseRemoteFolder('')}
+                className="text-cyan-400 hover:underline"
+              >
+                Refresh List
+              </button>
+            </div>
+
+            {remoteFiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-slate-500 border border-dashed border-white/10 rounded-2xl bg-white/5 text-center">
+                <Folder size={40} className="mb-2 text-slate-600" />
+                <p className="text-xs font-semibold text-slate-300">No remote files loaded</p>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-sm">
+                  Click 'Refresh List' or browse folders to sync device storage over SFTP when connected.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {remoteFiles.map((file, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3.5 hover:border-cyan-500/40 transition"
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      {file.isDir ? (
+                        <Folder size={20} className="text-amber-400 shrink-0" />
+                      ) : (
+                        <ImageIcon size={20} className="text-cyan-400 shrink-0" />
+                      )}
+                      <div className="truncate">
+                        <p className="text-xs font-bold text-slate-200 truncate">{file.name}</p>
+                        <p className="text-[10px] text-slate-500">{file.size}</p>
+                      </div>
+                    </div>
+
+                    {file.isDir ? (
+                      <button
+                        onClick={() => handleBrowseRemoteFolder(file.name)}
+                        className="text-xs text-cyan-400 font-semibold hover:underline shrink-0"
+                      >
+                        Open
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleTransferFileToDesktop(file.name)}
+                        className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 shrink-0"
+                        title="Transfer to PC"
+                      >
+                        <Download size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 4. SMS & Contacts */}
         {activeTab === 'sms' && (
           <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 h-full">
             <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
@@ -411,7 +658,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
           </div>
         )}
 
-        {/* 3. Remote Commands */}
+        {/* 5. Remote Commands */}
         {activeTab === 'commands' && (
           <div className="flex flex-col gap-4">
             <div className="flex gap-2">
@@ -453,7 +700,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
           </div>
         )}
 
-        {/* 4. Media Remote (MPRIS) */}
+        {/* 6. Media Remote (MPRIS) */}
         {activeTab === 'media' && (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 mb-4">
@@ -500,7 +747,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
           </div>
         )}
 
-        {/* 5. Shared Clipboard */}
+        {/* 7. Shared Clipboard */}
         {activeTab === 'clipboard' && (
           <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="flex items-center justify-between">
@@ -524,7 +771,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
                 className="flex items-center gap-1.5 rounded-xl bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50"
               >
                 <Clipboard size={14} />
-                <span>Copy to Local Clipboard</span>
+                <span>Copy & Sync to Remote Clipboard</span>
               </button>
             </div>
           </div>

@@ -9,15 +9,19 @@ interface AirDropBridgeModalProps {
 }
 
 export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
-  const [webUrl, setWebUrl] = useState<string>("http://localhost:53317/webdrop");
+  const [webUrl, setWebUrl] = useState<string>("http://127.0.0.1:53317/web");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     getSelfInfo().then((info) => {
-      // Build candidate local URL
-      setWebUrl(`http://${window.location.hostname || "192.168.1.X"}:${info.port}/webdrop`);
+      const ip = info.local_ip && info.local_ip !== "127.0.0.1"
+        ? info.local_ip
+        : (window.location.hostname && window.location.hostname !== "localhost" && window.location.hostname !== "tauri.localhost"
+            ? window.location.hostname
+            : "127.0.0.1");
+      setWebUrl(`http://${ip}:${info.port}/web`);
     }).catch(() => {
-      setWebUrl(`http://${window.location.hostname || "localhost"}:53317/webdrop`);
+      setWebUrl(`http://127.0.0.1:53317/web`);
     });
   }, [open]);
 
@@ -28,6 +32,8 @@ export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
   };
 
   if (!open) return null;
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(webUrl)}&color=4f46e5&bgcolor=ffffff`;
 
   return (
     <AnimatePresence>
@@ -57,14 +63,18 @@ export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
 
           <div className="mt-5 space-y-4">
             <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4 text-center">
-              <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-lg bg-white p-2">
-                {/* SVG QR Code pattern fallback */}
-                <div className="flex flex-col items-center justify-center text-slate-900">
-                  <QrCode size={90} className="text-indigo-600" />
-                  <span className="text-[9px] font-bold tracking-widest text-slate-700 uppercase">SCAN TO OPEN</span>
-                </div>
+              <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-xl bg-white p-2.5 shadow-lg overflow-hidden">
+                <img
+                  src={qrImageUrl}
+                  alt="Scan to open Web Portal"
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    // Fallback to SVG if offline
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
               </div>
-              <p className="mt-3 text-xs font-mono text-cyan-400 break-all">{webUrl}</p>
+              <p className="mt-3 text-xs font-mono text-cyan-400 break-all font-semibold">{webUrl}</p>
               <button
                 onClick={copyLink}
                 className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
