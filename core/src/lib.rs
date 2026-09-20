@@ -12,6 +12,7 @@
 //! - `transfer`  sender-side orchestration + progress events
 //! - `crypto`    self-signed cert generation + fingerprint pinning + PIN check
 
+pub mod airdrop;
 pub mod client;
 pub mod crypto;
 pub mod discovery;
@@ -19,5 +20,6 @@ pub mod history;
 pub mod models;
 pub mod server;
 pub mod transfer;
+
 
 pub use models::{Device, DeviceType};
