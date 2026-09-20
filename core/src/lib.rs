@@ -21,5 +21,4 @@ pub mod models;
 pub mod server;
 pub mod transfer;
 
-
 pub use models::{Device, DeviceType};
