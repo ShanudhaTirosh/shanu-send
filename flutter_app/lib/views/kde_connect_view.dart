@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../services/kde_connect_service.dart';
 
 class KdeConnectView extends StatefulWidget {
   final String deviceName;
-  const KdeConnectView({super.key, this.deviceName = 'Desktop PC'});
+  final String? targetIp;
+  const KdeConnectView({super.key, this.deviceName = 'Desktop PC', this.targetIp});
 
   @override
   State<KdeConnectView> createState() => _KdeConnectViewState();
@@ -10,6 +12,7 @@ class KdeConnectView extends StatefulWidget {
 
 class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final KdeConnectService _kdeService = KdeConnectService();
   bool _isPlaying = true;
   double _volume = 75.0;
   final TextEditingController _commandController = TextEditingController();
@@ -18,10 +21,12 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _kdeService.startDiscovery('Mobile Remote Controller', 'mobile-remote-id');
   }
 
   @override
   void dispose() {
+    _kdeService.stop();
     _tabController.dispose();
     _commandController.dispose();
     super.dispose();
@@ -34,9 +39,18 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
       appBar: AppBar(
         backgroundColor: const Color(0xFF090B11),
         elevation: 0,
-        title: Text(
-          widget.deviceName,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.deviceName,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const Text(
+              'Mobile Remote Controller Active',
+              style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
+            ),
+          ],
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -60,21 +74,33 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
             child: Column(
               children: [
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF161E2E),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
-                    ),
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.touch_app_rounded, size: 64, color: Color(0xFF38BDF8)),
-                          SizedBox(height: 12),
-                          Text('Multi-Touch Trackpad', style: TextStyle(color: Colors.white, fontSize: 16)),
-                          Text('Drag to move • Tap to click', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                        ],
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      _kdeService.sendMousepad(details.delta.dx, details.delta.dy, targetIp: widget.targetIp);
+                    },
+                    onTap: () {
+                      _kdeService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
+                    },
+                    onDoubleTap: () {
+                      _kdeService.sendMousepad(0, 0, click: 'doubleclick', targetIp: widget.targetIp);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161E2E),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
+                      ),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.touch_app_rounded, size: 64, color: Color(0xFF38BDF8)),
+                            SizedBox(height: 12),
+                            Text('Multi-Touch Trackpad Surface', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            SizedBox(height: 4),
+                            Text('Drag to move Desktop cursor • Tap to Click', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -84,7 +110,9 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          _kdeService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
+                        },
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B)),
                         child: const Text('Left Click'),
                       ),
@@ -92,7 +120,9 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          _kdeService.sendMousepad(0, 0, click: 'rightclick', targetIp: widget.targetIp);
+                        },
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B)),
                         child: const Text('Right Click'),
                       ),
@@ -120,8 +150,8 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                   child: const Icon(Icons.music_note_rounded, size: 64, color: Color(0xFF38BDF8)),
                 ),
                 const SizedBox(height: 16),
-                const Text('Starlight Odyssey', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                const Text('Neon Eclipse', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                const Text('Desktop MPRIS Stream', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Connected Host Media Player', style: TextStyle(color: Colors.white54, fontSize: 14)),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -129,7 +159,9 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                     IconButton(
                       iconSize: 40,
                       icon: const Icon(Icons.skip_previous_rounded, color: Colors.white),
-                      onPressed: () {},
+                      onPressed: () {
+                        _kdeService.sendMprisCommand('previous', targetIp: widget.targetIp);
+                      },
                     ),
                     IconButton(
                       iconSize: 64,
@@ -137,12 +169,17 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                         _isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
                         color: const Color(0xFF38BDF8),
                       ),
-                      onPressed: () => setState(() => _isPlaying = !_isPlaying),
+                      onPressed: () {
+                        setState(() => _isPlaying = !_isPlaying);
+                        _kdeService.sendMprisCommand(_isPlaying ? 'play' : 'pause', targetIp: widget.targetIp);
+                      },
                     ),
                     IconButton(
                       iconSize: 40,
                       icon: const Icon(Icons.skip_next_rounded, color: Colors.white),
-                      onPressed: () {},
+                      onPressed: () {
+                        _kdeService.sendMprisCommand('next', targetIp: widget.targetIp);
+                      },
                     ),
                   ],
                 ),
@@ -152,7 +189,10 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                   min: 0,
                   max: 100,
                   activeColor: const Color(0xFF38BDF8),
-                  onChanged: (v) => setState(() => _volume = v),
+                  onChanged: (v) {
+                    setState(() => _volume = v);
+                    _kdeService.sendMprisCommand('volume', volume: v, targetIp: widget.targetIp);
+                  },
                 ),
               ],
             ),
@@ -163,16 +203,32 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TextField(
-                  controller: _commandController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Execute remote terminal command...',
-                    hintStyle: const TextStyle(color: Colors.white38),
-                    filled: true,
-                    fillColor: const Color(0xFF161E2E),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _commandController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Execute remote command...',
+                          hintStyle: const TextStyle(color: Colors.white38),
+                          filled: true,
+                          fillColor: const Color(0xFF161E2E),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.send_rounded, color: Color(0xFF38BDF8)),
+                      onPressed: () {
+                        if (_commandController.text.isNotEmpty) {
+                          _kdeService.sendRunCommand(_commandController.text, widget.targetIp);
+                          _commandController.clear();
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -180,16 +236,22 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                     children: [
                       ListTile(
                         tileColor: const Color(0xFF161E2E),
-                        title: const Text('Lock Computer', style: TextStyle(color: Colors.white)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        title: const Text('Lock Desktop Workstation', style: TextStyle(color: Colors.white)),
                         trailing: const Icon(Icons.lock_rounded, color: Color(0xFF38BDF8)),
-                        onTap: () {},
+                        onTap: () {
+                          _kdeService.sendRunCommand('lock', widget.targetIp);
+                        },
                       ),
                       const SizedBox(height: 8),
                       ListTile(
                         tileColor: const Color(0xFF161E2E),
-                        title: const Text('Mute System Audio', style: TextStyle(color: Colors.white)),
-                        trailing: const Icon(Icons.volume_off_rounded, color: Color(0xFF38BDF8)),
-                        onTap: () {},
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        title: const Text('Send Ping Signal', style: TextStyle(color: Colors.white)),
+                        trailing: const Icon(Icons.notifications_active_rounded, color: Color(0xFF38BDF8)),
+                        onTap: () {
+                          _kdeService.sendRunCommand('ping', widget.targetIp);
+                        },
                       ),
                     ],
                   ),
@@ -205,7 +267,9 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    _kdeService.sendPresenterSlide(next: false, targetIp: widget.targetIp);
+                  },
                   icon: const Icon(Icons.arrow_back_rounded),
                   label: const Text('Previous Slide'),
                   style: ElevatedButton.styleFrom(
@@ -215,7 +279,9 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    _kdeService.sendPresenterSlide(next: true, targetIp: widget.targetIp);
+                  },
                   icon: const Icon(Icons.arrow_forward_rounded),
                   label: const Text('Next Slide'),
                   style: ElevatedButton.styleFrom(
@@ -231,3 +297,4 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
     );
   }
 }
+

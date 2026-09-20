@@ -82,8 +82,72 @@ class KdeConnectService {
     _udpSocket?.send(bytes, InternetAddress('255.255.255.255'), udpPort);
   }
 
+  void sendPacket(Map<String, dynamic> packet, [String? targetIp]) {
+    try {
+      final bytes = utf8.encode(jsonEncode(packet));
+      final ip = targetIp != null ? InternetAddress(targetIp) : InternetAddress('255.255.255.255');
+      _udpSocket?.send(bytes, ip, udpPort);
+    } catch (e) {
+      debugPrint('KDE Connect packet send error: $e');
+    }
+  }
+
+  void sendMousepad(double dx, double dy, {String? click, String? targetIp}) {
+    final Map<String, dynamic> body = {
+      'dx': dx,
+      'dy': dy,
+    };
+    if (click != null) {
+      body['click'] = click;
+    }
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'kdeconnect.mousepad',
+      'body': body,
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendMprisCommand(String action, {double? volume, String? targetIp}) {
+    final Map<String, dynamic> body = {
+      'action': action,
+    };
+    if (volume != null) {
+      body['volume'] = volume.toInt();
+    }
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'kdeconnect.mpris',
+      'body': body,
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendRunCommand(String command, [String? targetIp]) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'kdeconnect.runcommand.request',
+      'body': {
+        'key': command,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
+  void sendPresenterSlide({required bool next, String? targetIp}) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'kdeconnect.presenter',
+      'body': {
+        if (next) 'next': true else 'prev': true,
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
   void stop() {
     _udpSocket?.close();
     _packetController.close();
   }
 }
+

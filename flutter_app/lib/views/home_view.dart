@@ -284,19 +284,29 @@ class _HomeViewState extends State<HomeView> {
                             '${device.ip} • ${device.deviceModel}',
                             style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                           ),
-                          trailing: ElevatedButton(
-                            onPressed: _selectedFiles.isEmpty
-                                ? null
-                                : () => _transferService.sendFiles(
-                                      targetDevice: device,
-                                      files: _selectedFiles,
-                                    ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF38BDF8),
-                              foregroundColor: const Color(0xFF0B0F19),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            child: const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.mouse_rounded, color: Color(0xFF38BDF8)),
+                                tooltip: 'Remote Control ${device.alias}',
+                                onPressed: () => _openRemoteController(device.alias),
+                              ),
+                              ElevatedButton(
+                                onPressed: _selectedFiles.isEmpty
+                                    ? null
+                                    : () => _transferService.sendFiles(
+                                          targetDevice: device,
+                                          files: _selectedFiles,
+                                        ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF38BDF8),
+                                  foregroundColor: const Color(0xFF0B0F19),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
                           ),
                         ),
                       );

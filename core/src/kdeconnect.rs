@@ -431,13 +431,59 @@ impl KdeConnectEngine {
                 Some(self.build_identity_packet())
             }
             "kdeconnect.pair" => {
-                if let Ok(pair) = serde_json::from_value::<KdePair>(packet.body) {
+                if let Ok(pair) = serde_json::from_value::<KdePair>(packet.body.clone()) {
                     info!("KDE Connect pairing status updated: pair={}", pair.pair);
                 }
                 Some(KdePacket::new(
                     "kdeconnect.pair",
                     serde_json::json!({ "pair": true }),
                 ))
+            }
+            "kdeconnect.battery" => {
+                if let Ok(battery) = serde_json::from_value::<KdeBatteryPayload>(packet.body) {
+                    info!("KDE Connect Battery update: {}% (charging: {})", battery.current_charge, battery.is_charging);
+                }
+                None
+            }
+            "kdeconnect.notifications" => {
+                if let Ok(notif) = serde_json::from_value::<KdeNotificationPayload>(packet.body) {
+                    info!("KDE Connect Notification: [{}] {}: {}", notif.app_name, notif.title, notif.body);
+                }
+                None
+            }
+            "kdeconnect.mpris" => {
+                if let Ok(mpris) = serde_json::from_value::<KdeMprisPayload>(packet.body) {
+                    info!("KDE Connect MPRIS update: player={}, action={:?}", mpris.player, mpris.action);
+                }
+                None
+            }
+            "kdeconnect.systemvolume" => {
+                if let Ok(vol) = serde_json::from_value::<KdeSystemVolumePayload>(packet.body) {
+                    info!("KDE Connect System Volume: {} (muted: {})", vol.volume, vol.muted);
+                }
+                None
+            }
+            "kdeconnect.lockdevice" => {
+                if let Ok(lock) = serde_json::from_value::<KdeLockDevicePayload>(packet.body) {
+                    info!("KDE Connect Lock Device event: locked={}", lock.is_locked);
+                }
+                None
+            }
+            "kdeconnect.runcommand" => {
+                if let Ok(cmd) = serde_json::from_value::<KdeRunCommandPayload>(packet.body) {
+                    if let Some(key) = &cmd.key {
+                        info!("KDE Connect Run Command request: key={}", key);
+                        if key == "lock" || key.contains("LockWorkStation") {
+                            #[cfg(target_os = "windows")]
+                            {
+                                let _ = std::process::Command::new("rundll32.exe")
+                                    .args(["user32.dll,LockWorkStation"])
+                                    .spawn();
+                            }
+                        }
+                    }
+                }
+                None
             }
             "kdeconnect.ping" => Some(KdePacket::new(
                 "kdeconnect.ping",
@@ -455,5 +501,68 @@ impl KdeConnectEngine {
                 None
             }
         }
+    }
+
+    pub async fn start_listeners(self: Arc<Self>) {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+        use tokio::net::{TcpListener, UdpSocket};
+
+        let engine_tcp = Arc::clone(&self);
+        tokio::spawn(async move {
+            if let Ok(listener) = TcpListener::bind(format!("0.0.0.0:{}", KDECONNECT_TCP_PORT)).await {
+                info!("KDE Connect TCP listener running on port {}", KDECONNECT_TCP_PORT);
+                loop {
+                    if let Ok((stream, addr)) = listener.accept().await {
+                        info!("KDE Connect TCP connection accepted from {}", addr);
+                        let engine = Arc::clone(&engine_tcp);
+                        tokio::spawn(async move {
+                            let (reader, mut writer) = stream.into_split();
+                            let mut buf_reader = BufReader::new(reader);
+                            let mut line = String::new();
+                            while let Ok(n) = buf_reader.read_line(&mut line).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                if let Ok(packet) = serde_json::from_str::<KdePacket>(&line) {
+                                    if let Some(response) = engine.process_incoming_packet(packet).await {
+                                        if let Ok(json_resp) = serde_json::to_string(&response) {
+                                            let _ = writer.write_all(format!("{}\n", json_resp).as_bytes()).await;
+                                        }
+                                    }
+                                }
+                                line.clear();
+                            }
+                        });
+                    }
+                }
+            } else {
+                warn!("Could not bind KDE Connect TCP listener on port {}", KDECONNECT_TCP_PORT);
+            }
+        });
+
+        let engine_udp = Arc::clone(&self);
+        tokio::spawn(async move {
+            if let Ok(socket) = UdpSocket::bind(format!("0.0.0.0:{}", KDECONNECT_UDP_PORT)).await {
+                info!("KDE Connect UDP listener running on port {}", KDECONNECT_UDP_PORT);
+                let mut buf = [0u8; 65535];
+                loop {
+                    if let Ok((len, addr)) = socket.recv_from(&mut buf).await {
+                        if let Ok(packet) = serde_json::from_slice::<KdePacket>(&buf[..len]) {
+                            if let Some(response) = engine_udp.process_incoming_packet(packet).await {
+                                if let Ok(json_resp) = serde_json::to_string(&response) {
+                                    let _ = socket.send_to(format!("{}\n", json_resp).as_bytes(), addr).await;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                warn!("Could not bind KDE Connect UDP listener on port {}", KDECONNECT_UDP_PORT);
+            }
+        });
+    }
+
+    pub async fn list_devices(&self) -> Vec<KdeConnectDeviceState> {
+        self.devices.read().await.values().cloned().collect()
     }
 }

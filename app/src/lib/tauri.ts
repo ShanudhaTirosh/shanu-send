@@ -19,35 +19,6 @@ async function realListen<T>(event: string, handler: (payload: T) => void): Prom
   return unlisten;
 }
 
-// ---- Mock backend (browser-preview only) -----------------------------
-
-const MOCK_DEVICES: Device[] = [
-  {
-    ip: "192.168.1.42",
-    port: 53317,
-    https: true,
-    alias: "Shanudha's Pixel",
-    version: "2.1",
-    device_model: "Pixel 8",
-    device_type: "Mobile",
-    fingerprint: "mock-fingerprint-1",
-    download: false,
-    trusted: true,
-  },
-  {
-    ip: "192.168.1.17",
-    port: 53317,
-    https: true,
-    alias: "SHANUTECHX-DESKTOP",
-    version: "2.1",
-    device_model: "Windows",
-    device_type: "Desktop",
-    fingerprint: "mock-fingerprint-2",
-    download: false,
-    trusted: false,
-  },
-];
-
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -59,12 +30,28 @@ export async function startDiscovery(onDevice: (device: Device) => void): Promis
     return realListen<Device>("device-discovered", onDevice);
   }
 
-  // Mock mode: trickle in the two fake devices to demo the radar UI.
+  // Web / Browser mode: query local server endpoint if active
   let cancelled = false;
   (async () => {
-    for (const device of MOCK_DEVICES) {
-      await delay(600 + Math.random() * 900);
-      if (!cancelled) onDevice(device);
+    try {
+      const res = await fetch("/api/localsend/v2/info");
+      if (res.ok && !cancelled) {
+        const info = await res.json();
+        onDevice({
+          ip: window.location.hostname || "127.0.0.1",
+          port: info.port || 53317,
+          https: false,
+          alias: info.alias || "Local Host Device",
+          version: info.version || "2.1",
+          device_model: info.device_model || "Host System",
+          device_type: info.device_type || "Desktop",
+          fingerprint: info.fingerprint || "local-host-fp",
+          download: false,
+          trusted: true,
+        });
+      }
+    } catch (_) {
+      // Offline / stand-alone browser preview
     }
   })();
   return () => {
@@ -156,26 +143,8 @@ export async function onIncomingRequest(
     });
   }
 
-  // Mock mode: fire one demo incoming request a couple seconds after load,
-  // so the accept/reject UI is visible without a running backend.
-  let cancelled = false;
-  (async () => {
-    await delay(4000);
-    if (cancelled) return;
-    handler(
-      {
-        sessionId: "mock-session-1",
-        senderAlias: "Shanudha's Pixel",
-        files: [{ id: "f1", fileName: "vacation-photo.jpg", size: 3_200_000, fileType: "image/jpeg" }],
-      },
-      async (accept) => {
-        console.log("[mock] transfer request", accept ? "accepted" : "rejected");
-      },
-    );
-  })();
-  return () => {
-    cancelled = true;
-  };
+  // Browser / Web mode: return no-op unlisten (no spontaneous fake incoming requests)
+  return () => {};
 }
 
 export interface Settings {
@@ -339,31 +308,9 @@ export interface TransferRecord {
   source_path?: string;
 }
 
-const MOCK_HISTORY: TransferRecord[] = [
-  {
-    id: "h1",
-    direction: "sent",
-    peer_alias: "SHANUTECHX-DESKTOP",
-    file_name: "deploy-notes.pdf",
-    size: 480_000,
-    status: "done",
-    timestamp: Math.floor(Date.now() / 1000) - 3600,
-  },
-  {
-    id: "h2",
-    direction: "received",
-    peer_alias: "Shanudha's Pixel",
-    file_name: "screenshot.png",
-    size: 1_240_000,
-    status: "done",
-    timestamp: Math.floor(Date.now() / 1000) - 86_400,
-  },
-];
-
 export async function listHistory(): Promise<TransferRecord[]> {
   if (isTauri) return realInvoke<TransferRecord[]>("list_history");
-  await delay(200);
-  return [...MOCK_HISTORY];
+  return [];
 }
 
 export async function clearHistory(): Promise<void> {
@@ -371,7 +318,6 @@ export async function clearHistory(): Promise<void> {
     await realInvoke("clear_history");
     return;
   }
-  MOCK_HISTORY.length = 0;
 }
 
 // ---- KDE Connect Live IPC Helpers ----------------------------------------
@@ -426,7 +372,7 @@ export async function scrcpyCheckInstalled(): Promise<boolean> {
 
 export async function scrcpyListAdbDevices(): Promise<AdbDevice[]> {
   if (isTauri) return realInvoke<AdbDevice[]>("scrcpy_list_adb_devices");
-  return [{ id: "mock-adb-1", model: "Pixel 8 Pro", state: "device" }];
+  return [];
 }
 
 export async function scrcpyAdbConnect(address: string): Promise<string> {

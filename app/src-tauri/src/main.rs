@@ -43,11 +43,14 @@ fn main() {
                 ServerState::new(device_info, port, false, None, state::default_save_dir());
 
             let history_path = app_data_dir.join("history.json");
+            let kde_engine = std::sync::Arc::new(shanusend_core::kdeconnect::KdeConnectEngine::new(alias.clone()));
+            tauri::async_runtime::spawn(kde_engine.clone().start_listeners());
 
             app.manage(AppState {
                 server: server_state.clone(),
                 port,
                 history_path: history_path.clone(),
+                kde_engine,
             });
 
             // --- Receiving side: HTTP server -------------------------------

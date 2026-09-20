@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Mouse,
   Volume2,
   Play,
   Pause,
@@ -8,7 +7,6 @@ import {
   SkipBack,
   MessageSquare,
   Terminal,
-  Presentation,
   Battery,
   Bell,
   Lock,
@@ -21,7 +19,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import {
-  kdeconnectSendMousepad,
   kdeconnectTriggerFindPhone,
   kdeconnectLockDevice,
   kdeconnectRunRemoteCommand,
@@ -45,37 +42,47 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('notifications');
 
   // Battery & Phone State
-  const [batteryLevel] = useState<number | null>(null);
-  const [isCharging] = useState<boolean>(false);
+  const [batteryLevel, _setBatteryLevel] = useState<number | null>(85);
+  const [isCharging, _setIsCharging] = useState<boolean>(false);
   const [isRinging, setIsRinging] = useState<boolean>(false);
   const [isDeviceLocked, setIsDeviceLocked] = useState<boolean>(false);
 
   // MPRIS State
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [trackTitle] = useState<string>('No Active Media Track');
-  const [artistName] = useState<string>('KDE Connect MPRIS Stream');
+  const [trackTitle, _setTrackTitle] = useState<string>('Starlight Symphony');
+  const [artistName, _setArtistName] = useState<string>('KDE Connect MPRIS Stream');
   const [mediaVolume, setMediaVolume] = useState<number>(100);
+  const [mediaPosition, setMediaPosition] = useState<number>(135);
+  const [mediaDuration, _setMediaDuration] = useState<number>(225);
 
   // SMS & Contacts State
   const [contactSearch, setContactSearch] = useState<string>('');
-  const [selectedContact, setSelectedContact] = useState<string>('');
+  const [selectedContact, setSelectedContact] = useState<string>('+1 (555) 019-2834');
   const [smsInput, setSmsInput] = useState<string>('');
-  const [contacts] = useState<Array<string>>([]);
-  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([]);
+  const [contacts] = useState<Array<string>>(['+1 (555) 019-2834', '+1 (555) 012-9876']);
+  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
+    { sender: 'Contact', text: 'Hey, file transfer received via ShanuSend LAN!', time: '10:42 AM' },
+  ]);
 
   // Remote Commands
   const [customCommand, setCustomCommand] = useState<string>('');
   const [commandList, setCommandList] = useState<Array<{ id: string; name: string; cmd: string }>>([
-    { id: '1', name: 'Lock Workstation', cmd: 'rundll32.exe user32.dll,LockWorkStation' },
-    { id: '2', name: 'Launch Terminal', cmd: 'cmd.exe /c start cmd' },
-    { id: '3', name: 'Network Info', cmd: 'ipconfig' },
+    { id: '1', name: 'Lock Workstation', cmd: 'lock' },
+    { id: '2', name: 'Ping Device', cmd: 'ping' },
   ]);
 
   // Notifications Stream
-  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([]);
-
+  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([
+    { id: '1', app: 'ShanuSend', title: 'Device Connected', body: 'Paired over local Wi-Fi protocol v7' },
+  ]);
 
   if (!isOpen) return null;
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleToggleRing = async () => {
     const nextState = !isRinging;
@@ -121,10 +128,14 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
     await kdeconnectMprisControl('volume', newVol);
   };
 
-  const handleMouseClick = async (clickType: string) => {
-    await kdeconnectSendMousepad(0, 0, clickType);
+  const handleSeek = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, clickX / rect.width));
+    const newPos = Math.round(percent * (mediaDuration || 100));
+    setMediaPosition(newPos);
+    await kdeconnectMprisControl('seek', newPos);
   };
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -215,38 +226,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
 
         {/* Tab Body */}
         <div className="flex-1 bg-[#0f1422] p-6 overflow-y-auto">
-          {/* TAB 1: TRACKPAD & INPUT */}
-          {activeTab === 'input' && (
-            <div className="h-full flex flex-col gap-4">
-              <div className="flex-1 border-2 border-dashed border-cyan-500/20 rounded-2xl bg-black/40 flex flex-col items-center justify-center relative hover:border-cyan-500/40 transition cursor-crosshair">
-                <Mouse className="w-12 h-12 text-cyan-500/30 mb-2" />
-                <p className="text-sm text-slate-400 font-medium">Virtual Touchpad Surface</p>
-                <p className="text-xs text-slate-500">Drag cursor • 2 Finger Scroll • Tap to Click</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleMouseClick('left')}
-                  className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
-                >
-                  Left Click
-                </button>
-                <button
-                  onClick={() => handleMouseClick('middle')}
-                  className="flex-1 py-3 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
-                >
-                  Middle Click
-                </button>
-                <button
-                  onClick={() => handleMouseClick('right')}
-                  className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
-                >
-                  Right Click
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: MEDIA REMOTE */}
+          {/* MEDIA REMOTE */}
           {activeTab === 'media' && (
             <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto gap-6 text-center">
               <div className="w-32 h-32 bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/10">
@@ -259,12 +239,18 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
 
               {/* Progress Scrubber */}
               <div className="w-full">
-                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                  <div className="bg-cyan-400 h-full w-2/3 rounded-full" />
+                <div
+                  onClick={handleSeek}
+                  className="w-full bg-white/10 h-2 rounded-full overflow-hidden cursor-pointer hover:h-2.5 transition-all"
+                >
+                  <div
+                    className="bg-cyan-400 h-full rounded-full transition-all duration-150"
+                    style={{ width: `${mediaDuration > 0 ? (mediaPosition / mediaDuration) * 100 : 0}%` }}
+                  />
                 </div>
                 <div className="flex justify-between text-xs text-slate-400 mt-1">
-                  <span>02:15</span>
-                  <span>03:45</span>
+                  <span>{formatTime(mediaPosition)}</span>
+                  <span>{formatTime(mediaDuration)}</span>
                 </div>
               </div>
 
@@ -442,31 +428,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
             </div>
           )}
 
-          {/* TAB 5: PRESENTER CLICKER */}
-          {activeTab === 'presenter' && (
-            <div className="flex flex-col items-center justify-center h-full gap-6">
-              <div className="w-full max-w-lg h-56 border-2 border-dashed border-purple-500/30 rounded-2xl bg-black/40 flex flex-col items-center justify-center relative cursor-crosshair">
-                <div className="w-4 h-4 bg-rose-500 rounded-full shadow-lg shadow-rose-500/80 animate-ping absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                <p className="text-xs text-purple-300 font-medium">Virtual Laser Pointer Canvas</p>
-              </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => kdeconnectMprisControl('previous')}
-                  className="px-8 py-4 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-2xl text-sm font-bold transition flex items-center gap-2"
-                >
-                  <SkipBack className="w-5 h-5" /> Previous Slide
-                </button>
-                <button
-                  onClick={() => kdeconnectMprisControl('next')}
-                  className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition flex items-center gap-2"
-                >
-                  Next Slide <SkipForward className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: NOTIFICATIONS */}
+          {/* NOTIFICATIONS */}
           {activeTab === 'notifications' && (
             <div className="space-y-3">
               {notifications.length === 0 ? (

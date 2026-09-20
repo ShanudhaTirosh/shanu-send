@@ -235,23 +235,45 @@ pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn kdeconnect_send_mousepad(
+    state: State<'_, AppState>,
     dx: Option<f32>,
     dy: Option<f32>,
     click: Option<String>,
 ) -> Result<(), String> {
     tracing::info!("KDEConnect mousepad event: dx={:?}, dy={:?}, click={:?}", dx, dy, click);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.mousepad",
+        serde_json::json!({ "dx": dx, "dy": dy, "click": click }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn kdeconnect_trigger_find_phone(ring: bool) -> Result<(), String> {
+pub async fn kdeconnect_trigger_find_phone(
+    state: State<'_, AppState>,
+    ring: bool,
+) -> Result<(), String> {
     tracing::info!("KDEConnect Find My Phone triggered: ring={}", ring);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.findmyphone",
+        serde_json::json!({ "ring": ring }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn kdeconnect_lock_device(locked: bool) -> Result<(), String> {
+pub async fn kdeconnect_lock_device(
+    state: State<'_, AppState>,
+    locked: bool,
+) -> Result<(), String> {
     tracing::info!("KDEConnect Lock Device triggered: locked={}", locked);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.lockdevice",
+        serde_json::json!({ "isLocked": locked }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     if locked {
         #[cfg(target_os = "windows")]
         {
@@ -264,8 +286,16 @@ pub async fn kdeconnect_lock_device(locked: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn kdeconnect_run_remote_command(command: String) -> Result<String, String> {
+pub async fn kdeconnect_run_remote_command(
+    state: State<'_, AppState>,
+    command: String,
+) -> Result<String, String> {
     tracing::info!("KDEConnect Remote Command Requested: {}", command);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.runcommand",
+        serde_json::json!({ "key": command }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     match command.trim() {
         "lock" | "LockWorkStation" => {
             #[cfg(target_os = "windows")]
@@ -285,14 +315,32 @@ pub async fn kdeconnect_run_remote_command(command: String) -> Result<String, St
 }
 
 #[tauri::command]
-pub async fn kdeconnect_send_sms(recipient: String, body: String) -> Result<(), String> {
+pub async fn kdeconnect_send_sms(
+    state: State<'_, AppState>,
+    recipient: String,
+    body: String,
+) -> Result<(), String> {
     tracing::info!("KDEConnect Send SMS to {}: {}", recipient, body);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.sms",
+        serde_json::json!({ "sendTo": recipient, "sendBody": body }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn kdeconnect_mpris_control(action: String, volume: Option<i32>) -> Result<(), String> {
+pub async fn kdeconnect_mpris_control(
+    state: State<'_, AppState>,
+    action: String,
+    volume: Option<i32>,
+) -> Result<(), String> {
     tracing::info!("KDEConnect MPRIS Action: {} (volume: {:?})", action, volume);
+    let packet = shanusend_core::kdeconnect::KdePacket::new(
+        "kdeconnect.mpris",
+        serde_json::json!({ "player": "ShanuSendPlayer", "action": action, "volume": volume }),
+    );
+    let _ = state.kde_engine.process_incoming_packet(packet).await;
     Ok(())
 }
 
