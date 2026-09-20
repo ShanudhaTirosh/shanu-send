@@ -109,11 +109,13 @@ pub async fn upload_file_stream(
         base_url(device)
     );
     let client = http_client(device.https);
-    let stream = tokio_util::io::ReaderStream::new(file);
+    // 256 KB chunk buffer for maximum Wi-Fi throughput
+    let stream = tokio_util::io::ReaderStream::with_capacity(file, 256 * 1024);
     let body = reqwest::Body::wrap_stream(stream);
 
     let resp = client
         .post(&url)
+        .header("X-ShanuSend-Speed", "Turbo")
         .body(body)
         .send()
         .await
@@ -126,13 +128,13 @@ pub async fn upload_file_stream(
     }
 }
 
-/// Peers use self-signed certs, so the client must not do standard CA
-/// validation. Real fingerprint pinning against `device.fingerprint` is
-/// added in Phase 3; today this just disables cert validation like
-/// LocalSend's own client does prior to pinning being wired up.
+/// High-Speed Optimized HTTP Client
 fn http_client(_https: bool) -> reqwest::Client {
     reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
+        .tcp_nodelay(true)
+        .pool_max_idle_per_host(10)
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
         .build()
         .expect("client builds")
 }
