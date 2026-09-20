@@ -15,6 +15,7 @@ import { RemoteTouchpadPanel } from "./features/remote/RemoteTouchpadPanel";
 import { PhoneControlPanel } from "./features/phone/PhoneControlPanel";
 import { ScreenMirrorModal } from "./features/mirror/ScreenMirrorModal";
 import { QuickShareModal } from "./features/quickshare/QuickShareModal";
+import { KdeConnectModal } from "./features/kdeconnect/KdeConnectModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 type ActiveTab = "transfer" | "touchpad" | "phone";
@@ -33,6 +34,7 @@ export default function App() {
   const [airDropOpen, setAirDropOpen] = useState(false);
   const [quickShareOpen, setQuickShareOpen] = useState(false);
   const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [kdeConnectOpen, setKdeConnectOpen] = useState(false);
 
   const handleSend = async () => {
     if (!selected || files.length === 0) return;
@@ -54,6 +56,7 @@ export default function App() {
       <AirDropBridgeModal open={airDropOpen} onClose={() => setAirDropOpen(false)} />
       <QuickShareModal open={quickShareOpen} onClose={() => setQuickShareOpen(false)} />
       <ScreenMirrorModal open={mirrorOpen} onClose={() => setMirrorOpen(false)} selectedDevice={selected} />
+      <KdeConnectModal isOpen={kdeConnectOpen} onClose={() => setKdeConnectOpen(false)} deviceName={selected?.alias || "KDE Device"} />
 
       {/* Header Bar */}
       <header className="flex items-center justify-between gap-3">
@@ -71,6 +74,14 @@ export default function App() {
 
         {/* Action Header Items */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setKdeConnectOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
+            title="KDE Connect Full Suite"
+          >
+            <Smartphone size={15} className="text-cyan-400" />
+            <span>KDE Connect</span>
+          </button>
           <button
             onClick={() => setQuickShareOpen(true)}
             className="flex h-9 items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20"
