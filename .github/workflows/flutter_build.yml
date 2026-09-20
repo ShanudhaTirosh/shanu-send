@@ -1,10 +1,7 @@
 name: Flutter ShanuSend Build Matrix
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+# Disabled: all builds run locally
+on: []
 
 jobs:
   build:

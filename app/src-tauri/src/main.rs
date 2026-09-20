@@ -11,6 +11,12 @@ use tauri::{Emitter, Manager};
 use tracing::info;
 
 fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        let log_file = std::env::temp_dir().join("shanusend_crash.log");
+        let _ = std::fs::write(&log_file, format!("PANIC: {info:?}\n"));
+        let _ = std::fs::write("shanusend_crash.log", format!("PANIC: {info:?}\n"));
+    }));
+
     let _ = tracing_subscriber::fmt().try_init();
 
     tauri::Builder::default()
@@ -150,10 +156,10 @@ fn main() {
             });
 
             // --- Sending side: multicast discovery listener -----------------
-            let (mut discovery_rx, _discovery_handle) = discovery::listen();
             let discovery_events_handle = app_handle.clone();
             let discovery_alias = alias.clone();
             tauri::async_runtime::spawn(async move {
+                let (mut discovery_rx, _discovery_handle) = discovery::listen();
                 while let Some(evt) = discovery_rx.recv().await {
                     // Don't surface our own announcements back to ourselves.
                     if evt.dto.fingerprint == cert.fingerprint {
@@ -230,6 +236,12 @@ fn main() {
             commands::rename_device,
             commands::list_history,
             commands::clear_history,
+            commands::kdeconnect_send_mousepad,
+            commands::kdeconnect_trigger_find_phone,
+            commands::kdeconnect_lock_device,
+            commands::kdeconnect_run_remote_command,
+            commands::kdeconnect_send_sms,
+            commands::kdeconnect_mpris_control,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ShanuSend");

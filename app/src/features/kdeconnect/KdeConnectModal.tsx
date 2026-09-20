@@ -20,6 +20,14 @@ import {
   Radio,
   Sparkles,
 } from 'lucide-react';
+import {
+  kdeconnectSendMousepad,
+  kdeconnectTriggerFindPhone,
+  kdeconnectLockDevice,
+  kdeconnectRunRemoteCommand,
+  kdeconnectSendSms,
+  kdeconnectMprisControl,
+} from '../../lib/tauri';
 
 interface KdeConnectModalProps {
   isOpen: boolean;
@@ -37,47 +45,56 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('input');
 
   // Battery & Phone State
-  const [batteryLevel] = useState<number>(88);
-  const [isCharging] = useState<boolean>(true);
+  const [batteryLevel] = useState<number | null>(null);
+  const [isCharging] = useState<boolean>(false);
   const [isRinging, setIsRinging] = useState<boolean>(false);
   const [isDeviceLocked, setIsDeviceLocked] = useState<boolean>(false);
 
   // MPRIS State
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [trackTitle] = useState<string>('Starlight Odyssey');
-  const [artistName] = useState<string>('Neon Eclipse');
-  const [mediaVolume, setMediaVolume] = useState<number>(75);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [trackTitle] = useState<string>('No Active Media Track');
+  const [artistName] = useState<string>('KDE Connect MPRIS Stream');
+  const [mediaVolume, setMediaVolume] = useState<number>(100);
 
   // SMS & Contacts State
   const [contactSearch, setContactSearch] = useState<string>('');
-  const [selectedContact, setSelectedContact] = useState<string>('Alex Vance');
+  const [selectedContact, setSelectedContact] = useState<string>('');
   const [smsInput, setSmsInput] = useState<string>('');
-  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
-    { sender: 'Alex Vance', text: 'Hey, are you free for a call?', time: '18:42' },
-    { sender: 'You', text: 'Sure! Let me grab my headset.', time: '18:45' },
-  ]);
+  const [contacts] = useState<Array<string>>([]);
+  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([]);
 
   // Remote Commands
   const [customCommand, setCustomCommand] = useState<string>('');
   const [commandList, setCommandList] = useState<Array<{ id: string; name: string; cmd: string }>>([
     { id: '1', name: 'Lock Workstation', cmd: 'rundll32.exe user32.dll,LockWorkStation' },
-    { id: '2', name: 'Sleep PC', cmd: 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0' },
-    { id: '3', name: 'Mute System Audio', cmd: 'nircmd mutesysvolume 1' },
-    { id: '4', name: 'Launch Terminal', cmd: 'cmd.exe /c start cmd' },
+    { id: '2', name: 'Launch Terminal', cmd: 'cmd.exe /c start cmd' },
+    { id: '3', name: 'Network Info', cmd: 'ipconfig' },
   ]);
 
   // Notifications Stream
-  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([
-    { id: 'n1', app: 'WhatsApp', title: 'Sarah Jenkins', body: 'Sent you 3 photos from the trip!' },
-    { id: 'n2', app: 'Gmail', title: 'Build Success', body: 'ShanuSend v2.5 release pipeline finished.' },
-  ]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([]);
+
 
   if (!isOpen) return null;
 
-  const handleSendSms = () => {
+  const handleToggleRing = async () => {
+    const nextState = !isRinging;
+    setIsRinging(nextState);
+    await kdeconnectTriggerFindPhone(nextState);
+  };
+
+  const handleToggleLock = async () => {
+    const nextState = !isDeviceLocked;
+    setIsDeviceLocked(nextState);
+    await kdeconnectLockDevice(nextState);
+  };
+
+  const handleSendSms = async () => {
     if (!smsInput.trim()) return;
-    setMessages((prev) => [...prev, { sender: 'You', text: smsInput, time: 'Just now' }]);
+    const text = smsInput;
+    setMessages((prev) => [...prev, { sender: 'You', text, time: 'Just now' }]);
     setSmsInput('');
+    await kdeconnectSendSms(selectedContact, text);
   };
 
   const handleAddCommand = () => {
@@ -88,6 +105,26 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
     ]);
     setCustomCommand('');
   };
+
+  const handleRunCommand = async (cmdString: string) => {
+    await kdeconnectRunRemoteCommand(cmdString);
+  };
+
+  const handleMediaPlayPause = async () => {
+    const nextState = !isPlaying;
+    setIsPlaying(nextState);
+    await kdeconnectMprisControl(nextState ? 'play' : 'pause');
+  };
+
+  const handleVolumeChange = async (newVol: number) => {
+    setMediaVolume(newVol);
+    await kdeconnectMprisControl('volume', newVol);
+  };
+
+  const handleMouseClick = async (clickType: string) => {
+    await kdeconnectSendMousepad(0, 0, clickType);
+  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -117,7 +154,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                 <span>{batteryLevel}% {isCharging && '⚡'}</span>
               </div>
               <button
-                onClick={() => setIsRinging(!isRinging)}
+                onClick={handleToggleRing}
                 className={`px-2 py-1 rounded text-[11px] font-medium transition ${
                   isRinging
                     ? 'bg-rose-500 text-white animate-bounce'
@@ -128,7 +165,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                 {isRinging ? 'Ringing...' : 'Find Phone'}
               </button>
               <button
-                onClick={() => setIsDeviceLocked(!isDeviceLocked)}
+                onClick={handleToggleLock}
                 className={`px-2.5 py-1 rounded text-[11px] font-medium border transition ${
                   isDeviceLocked
                     ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
@@ -189,13 +226,22 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                 <p className="text-xs text-slate-500">Drag cursor • 2 Finger Scroll • Tap to Click</p>
               </div>
               <div className="flex gap-3">
-                <button className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition">
+                <button
+                  onClick={() => handleMouseClick('left')}
+                  className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
+                >
                   Left Click
                 </button>
-                <button className="flex-1 py-3 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition">
+                <button
+                  onClick={() => handleMouseClick('middle')}
+                  className="flex-1 py-3 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
+                >
                   Middle Click
                 </button>
-                <button className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition">
+                <button
+                  onClick={() => handleMouseClick('right')}
+                  className="flex-1 py-3 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-xl text-sm font-semibold active:scale-[0.98] transition"
+                >
                   Right Click
                 </button>
               </div>
@@ -226,16 +272,22 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
 
               {/* Playback Controls */}
               <div className="flex items-center gap-6">
-                <button className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition">
+                <button
+                  onClick={() => kdeconnectMprisControl('previous')}
+                  className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition"
+                >
                   <SkipBack className="w-6 h-6" />
                 </button>
                 <button
-                  onClick={() => setIsPlaying(!isPlaying)}
+                  onClick={handleMediaPlayPause}
                   className="p-4 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 transition"
                 >
                   {isPlaying ? <Pause className="w-8 h-8 fill-black" /> : <Play className="w-8 h-8 fill-black ml-1" />}
                 </button>
-                <button className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition">
+                <button
+                  onClick={() => kdeconnectMprisControl('next')}
+                  className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition"
+                >
                   <SkipForward className="w-6 h-6" />
                 </button>
               </div>
@@ -248,7 +300,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                   min="0"
                   max="100"
                   value={mediaVolume}
-                  onChange={(e) => setMediaVolume(Number(e.target.value))}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
                   className="w-full accent-cyan-400"
                 />
                 <Volume2 className="w-4 h-4 text-cyan-400" />
@@ -263,56 +315,72 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
               <div className="border border-white/10 rounded-xl bg-black/30 p-3 flex flex-col gap-3">
                 <input
                   type="text"
-                  placeholder="Search contacts..."
+                  placeholder="Search / enter number..."
                   value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                  onChange={(e) => {
+                    setContactSearch(e.target.value);
+                    if (e.target.value) setSelectedContact(e.target.value);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 text-white"
                 />
                 <div className="flex-1 overflow-y-auto space-y-1">
-                  {['Alex Vance', 'Sarah Jenkins', 'Dev Team Lead', 'David Miller']
-                    .filter((c) => c.toLowerCase().includes(contactSearch.toLowerCase()))
-                    .map((contact) => (
-                      <button
-                        key={contact}
-                        onClick={() => setSelectedContact(contact)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition ${
-                          selectedContact === contact
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                            : 'hover:bg-white/5 text-slate-400'
-                        }`}
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        {contact}
-                      </button>
-                    ))}
+                  {contacts.length === 0 ? (
+                    <div className="p-4 text-center text-slate-500 text-xs">
+                      No contacts synced yet. Type a recipient number above.
+                    </div>
+                  ) : (
+                    contacts
+                      .filter((c) => c.toLowerCase().includes(contactSearch.toLowerCase()))
+                      .map((contact) => (
+                        <button
+                          key={contact}
+                          onClick={() => setSelectedContact(contact)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition ${
+                            selectedContact === contact
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                              : 'hover:bg-white/5 text-slate-400'
+                          }`}
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          {contact}
+                        </button>
+                      ))
+                  )}
                 </div>
               </div>
 
               {/* Messages Thread */}
               <div className="col-span-2 border border-white/10 rounded-xl bg-black/30 p-4 flex flex-col">
                 <h4 className="text-sm font-semibold border-b border-white/10 pb-2 mb-3 text-cyan-400 flex items-center gap-2">
-                  <User className="w-4 h-4" /> {selectedContact}
+                  <User className="w-4 h-4" /> {selectedContact || 'Select Recipient'}
                 </h4>
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
-                  {messages.map((msg, i) => (
-                    <div
-                      key={i}
-                      className={`flex flex-col ${
-                        msg.sender === 'You' ? 'items-end' : 'items-start'
-                      }`}
-                    >
+                  {messages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs">
+                      <MessageSquare className="w-8 h-8 text-slate-600 mb-2" />
+                      <span>No conversation history. Enter message below to send.</span>
+                    </div>
+                  ) : (
+                    messages.map((msg, i) => (
                       <div
-                        className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs font-medium ${
-                          msg.sender === 'You'
-                            ? 'bg-cyan-600 text-white rounded-br-none'
-                            : 'bg-slate-800 text-slate-200 border border-white/10 rounded-bl-none'
+                        key={i}
+                        className={`flex flex-col ${
+                          msg.sender === 'You' ? 'items-end' : 'items-start'
                         }`}
                       >
-                        {msg.text}
+                        <div
+                          className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs font-medium ${
+                            msg.sender === 'You'
+                              ? 'bg-cyan-600 text-white rounded-br-none'
+                              : 'bg-slate-800 text-slate-200 border border-white/10 rounded-bl-none'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1">{msg.time}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 mt-1">{msg.time}</span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2 border-t border-white/10">
@@ -322,7 +390,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                     value={smsInput}
                     onChange={(e) => setSmsInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendSms()}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 text-white"
                   />
                   <button
                     onClick={handleSendSms}
@@ -344,7 +412,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                   placeholder="Add custom CLI command..."
                   value={customCommand}
                   onChange={(e) => setCustomCommand(e.target.value)}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500 text-white"
                 />
                 <button
                   onClick={handleAddCommand}
@@ -364,7 +432,10 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                       <h4 className="text-sm font-semibold text-white">{cmd.name}</h4>
                       <p className="text-[11px] text-slate-500 font-mono mt-0.5">{cmd.cmd}</p>
                     </div>
-                    <button className="px-3 py-1.5 bg-cyan-500/10 group-hover:bg-cyan-500 text-cyan-400 group-hover:text-black font-semibold text-xs rounded-lg transition border border-cyan-500/30">
+                    <button
+                      onClick={() => handleRunCommand(cmd.cmd)}
+                      className="px-3 py-1.5 bg-cyan-500/10 group-hover:bg-cyan-500 text-cyan-400 group-hover:text-black font-semibold text-xs rounded-lg transition border border-cyan-500/30"
+                    >
                       Run
                     </button>
                   </div>
@@ -381,10 +452,16 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                 <p className="text-xs text-purple-300 font-medium">Virtual Laser Pointer Canvas</p>
               </div>
               <div className="flex gap-4">
-                <button className="px-8 py-4 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-2xl text-sm font-bold transition flex items-center gap-2">
+                <button
+                  onClick={() => kdeconnectMprisControl('previous')}
+                  className="px-8 py-4 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-2xl text-sm font-bold transition flex items-center gap-2"
+                >
                   <SkipBack className="w-5 h-5" /> Previous Slide
                 </button>
-                <button className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition flex items-center gap-2">
+                <button
+                  onClick={() => kdeconnectMprisControl('next')}
+                  className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition flex items-center gap-2"
+                >
                   Next Slide <SkipForward className="w-5 h-5" />
                 </button>
               </div>
@@ -394,36 +471,44 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
           {/* TAB 6: NOTIFICATIONS */}
           {activeTab === 'notifications' && (
             <div className="space-y-3">
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  className="p-4 bg-black/40 border border-white/10 rounded-xl flex items-start justify-between hover:border-cyan-500/30 transition"
-                >
-                  <div className="flex gap-3">
-                    <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 mt-0.5">
-                      <Bell className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-cyan-400">{notif.app}</span>
-                        <span className="text-[10px] text-slate-500">• Just now</span>
-                      </div>
-                      <h4 className="text-sm font-bold text-white mt-0.5">{notif.title}</h4>
-                      <p className="text-xs text-slate-400 mt-1">{notif.body}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() =>
-                      setNotifications((prev) => prev.filter((n) => n.id !== notif.id))
-                    }
-                    className="p-1 rounded text-slate-500 hover:text-white hover:bg-white/10 transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+              {notifications.length === 0 ? (
+                <div className="h-48 flex flex-col items-center justify-center text-slate-500 text-xs">
+                  <Bell className="w-8 h-8 text-slate-600 mb-2" />
+                  <span>No notifications received from paired device.</span>
                 </div>
-              ))}
+              ) : (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className="p-4 bg-black/40 border border-white/10 rounded-xl flex items-start justify-between hover:border-cyan-500/30 transition"
+                  >
+                    <div className="flex gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 mt-0.5">
+                        <Bell className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-cyan-400">{notif.app}</span>
+                          <span className="text-[10px] text-slate-500">• Just now</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mt-0.5">{notif.title}</h4>
+                        <p className="text-xs text-slate-400 mt-1">{notif.body}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setNotifications((prev) => prev.filter((n) => n.id !== notif.id))
+                      }
+                      className="p-1 rounded text-slate-500 hover:text-white hover:bg-white/10 transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
+
         </div>
       </div>
     </div>

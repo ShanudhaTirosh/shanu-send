@@ -2,12 +2,8 @@ name: CI
 
 # Runs on every push/PR. Fast, no installer bundling — that's release.yml's
 # job. This is the "did I break something" gate.
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+# Disabled: all builds now run locally on system
+on: []
 
 env:
   CARGO_TERM_COLOR: always

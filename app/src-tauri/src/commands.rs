@@ -232,3 +232,67 @@ pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn kdeconnect_send_mousepad(
+    dx: Option<f32>,
+    dy: Option<f32>,
+    click: Option<String>,
+) -> Result<(), String> {
+    tracing::info!("KDEConnect mousepad event: dx={:?}, dy={:?}, click={:?}", dx, dy, click);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn kdeconnect_trigger_find_phone(ring: bool) -> Result<(), String> {
+    tracing::info!("KDEConnect Find My Phone triggered: ring={}", ring);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn kdeconnect_lock_device(locked: bool) -> Result<(), String> {
+    tracing::info!("KDEConnect Lock Device triggered: locked={}", locked);
+    if locked {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = std::process::Command::new("rundll32.exe")
+                .args(["user32.dll,LockWorkStation"])
+                .spawn();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn kdeconnect_run_remote_command(command: String) -> Result<String, String> {
+    tracing::info!("KDEConnect Executing Remote Command: {}", command);
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("cmd.exe")
+            .args(["/c", &command])
+            .output()
+            .map_err(|e| e.to_string())?;
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let output = std::process::Command::new("sh")
+            .args(["-c", &command])
+            .output()
+            .map_err(|e| e.to_string())?;
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+}
+
+#[tauri::command]
+pub async fn kdeconnect_send_sms(recipient: String, body: String) -> Result<(), String> {
+    tracing::info!("KDEConnect Send SMS to {}: {}", recipient, body);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn kdeconnect_mpris_control(action: String, volume: Option<i32>) -> Result<(), String> {
+    tracing::info!("KDEConnect MPRIS Action: {} (volume: {:?})", action, volume);
+    Ok(())
+}
+

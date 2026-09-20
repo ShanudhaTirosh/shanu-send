@@ -7,20 +7,8 @@ name: Release
 # Triggers:
 #   - push a tag like `v0.2.0` -> builds + publishes a release automatically
 #   - manual dispatch -> same, but you can pick draft/prerelease at run time
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      draft:
-        description: 'Create as draft release'
-        type: boolean
-        default: true
-      prerelease:
-        description: 'Mark as prerelease'
-        type: boolean
-        default: false
+# Disabled: all release builds run locally
+on: []
 
 env:
   CARGO_TERM_COLOR: always

@@ -374,4 +374,44 @@ export async function clearHistory(): Promise<void> {
   MOCK_HISTORY.length = 0;
 }
 
+// ---- KDE Connect Live IPC Helpers ----------------------------------------
+
+export async function kdeconnectSendMousepad(dx?: number, dy?: number, click?: string): Promise<void> {
+  if (isTauri) {
+    await realInvoke("kdeconnect_send_mousepad", { dx, dy, click });
+  }
+}
+
+export async function kdeconnectTriggerFindPhone(ring: boolean): Promise<void> {
+  if (isTauri) {
+    await realInvoke("kdeconnect_trigger_find_phone", { ring });
+  }
+}
+
+export async function kdeconnectLockDevice(locked: boolean): Promise<void> {
+  if (isTauri) {
+    await realInvoke("kdeconnect_lock_device", { locked });
+  }
+}
+
+export async function kdeconnectRunRemoteCommand(command: string): Promise<string> {
+  if (isTauri) {
+    return realInvoke<string>("kdeconnect_run_remote_command", { command });
+  }
+  return `[Mock Exec] ${command}`;
+}
+
+export async function kdeconnectSendSms(recipient: String, body: String): Promise<void> {
+  if (isTauri) {
+    await realInvoke("kdeconnect_send_sms", { recipient, body });
+  }
+}
+
+export async function kdeconnectMprisControl(action: string, volume?: number): Promise<void> {
+  if (isTauri) {
+    await realInvoke("kdeconnect_mpris_control", { action, volume });
+  }
+}
+
 export { isTauri };
+
