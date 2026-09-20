@@ -137,3 +137,49 @@ pub fn build_self_announcement(
 /// Shared, cloneable handle so the Tauri command layer and the HTTP server
 /// can both trigger announcements without owning the socket themselves.
 pub type SharedDiscovery = Arc<tokio::sync::Mutex<()>>;
+
+/// Scans the local /24 subnet via HTTP GET /api/localsend/v2/info as a fallback
+/// when UDP multicast is disabled/blocked by Wi-Fi routers.
+pub async fn scan_subnet(subnet_prefix: &str, tx: mpsc::Sender<DiscoveryEvent>) {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1200))
+        .danger_accept_invalid_certs(true)
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    let mut tasks = Vec::with_capacity(254);
+    for i in 1..255 {
+        let target_ip = format!("{subnet_prefix}.{i}");
+        let client = client.clone();
+        let tx = tx.clone();
+        tasks.push(tokio::spawn(async move {
+            let url = format!("http://{target_ip}:{DEFAULT_PORT}/api/localsend/v2/info");
+            if let Ok(resp) = client.get(&url).send().await {
+                if let Ok(reg) = resp.json::<crate::models::RegisterDto>().await {
+                    if let Ok(from_addr) = format!("{target_ip}:{DEFAULT_PORT}").parse::<SocketAddr>() {
+                        let dto = MulticastDto {
+                            alias: reg.alias,
+                            version: reg.version,
+                            device_model: reg.device_model,
+                            device_type: reg.device_type,
+                            fingerprint: reg.fingerprint,
+                            port: reg.port,
+                            protocol: reg.protocol,
+                            download: reg.download,
+                            announcement: Some(false),
+                            announce: Some(false),
+                        };
+                        let _ = tx.send(DiscoveryEvent { from_addr, dto }).await;
+                    }
+                }
+            }
+        }));
+    }
+
+    for task in tasks {
+        let _ = task.await;
+    }
+}

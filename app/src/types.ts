@@ -28,7 +28,7 @@ export interface LocalFile {
 
 export type ServerEvent =
   | { type: "IncomingRequest"; session_id: string; sender_alias: string; files: Record<string, RustFileDto> }
-  | { type: "UploadProgress"; session_id: string; file_id: string; received_bytes: number; total_bytes: number }
+  | { type: "UploadProgress"; session_id: string; file_id: string; received_bytes: number; total_bytes: number; speed_bytes_per_sec?: number; eta_seconds?: number }
   | { type: "UploadComplete"; session_id: string; file_id: string; saved_path: string }
   | { type: "UploadFailed"; session_id: string; file_id: string; reason: string }
   | { type: "SessionCancelled"; session_id: string };
@@ -50,7 +50,7 @@ export type SendEvent =
   | { type: "Preparing" }
   | { type: "Rejected" }
   | { type: "PinRequired" }
-  | { type: "FileProgress"; file_id: string; bytes_sent: number; total_bytes: number }
+  | { type: "FileProgress"; file_id: string; bytes_sent: number; total_bytes: number; speed_bytes_per_sec?: number; eta_seconds?: number }
   | { type: "FileDone"; file_id: string }
   | { type: "FileFailed"; file_id: string; reason: string }
   | { type: "AllDone" };

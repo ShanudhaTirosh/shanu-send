@@ -192,6 +192,18 @@ const MOCK_SETTINGS: Settings = {
   trusted_fingerprints: ["mock-fingerprint-1"],
 };
 
+export interface SelfInfo {
+  alias: string;
+  fingerprint: string;
+  port: number;
+}
+
+export async function getSelfInfo(): Promise<SelfInfo> {
+  if (isTauri) return realInvoke<SelfInfo>("get_self_info");
+  await delay(100);
+  return { alias: "ShanuSend Device", fingerprint: "mock-fingerprint", port: 53317 };
+}
+
 export async function getSettings(): Promise<Settings> {
   if (isTauri) return realInvoke<Settings>("get_settings");
   await delay(200);

@@ -97,6 +97,35 @@ pub async fn upload_file_bytes(
     }
 }
 
+pub async fn upload_file_stream(
+    device: &Device,
+    session_id: &str,
+    file_id: &str,
+    token: &str,
+    file: tokio::fs::File,
+) -> Result<(), ClientError> {
+    let url = format!(
+        "{}/api/localsend/v2/upload?sessionId={session_id}&fileId={file_id}&token={token}",
+        base_url(device)
+    );
+    let client = http_client(device.https);
+    let stream = tokio_util::io::ReaderStream::new(file);
+    let body = reqwest::Body::wrap_stream(stream);
+
+    let resp = client
+        .post(&url)
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| ClientError::Network(std::io::Error::other(e)))?;
+
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(ClientError::Rejected(resp.status().as_u16()))
+    }
+}
+
 /// Peers use self-signed certs, so the client must not do standard CA
 /// validation. Real fingerprint pinning against `device.fingerprint` is
 /// added in Phase 3; today this just disables cert validation like

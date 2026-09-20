@@ -33,6 +33,8 @@ pub enum SendEvent {
         file_id: String,
         bytes_sent: u64,
         total_bytes: u64,
+        speed_bytes_per_sec: u64,
+        eta_seconds: u64,
     },
     FileDone {
         file_id: String,
@@ -90,8 +92,8 @@ pub async fn send_files(
             continue;
         };
 
-        let bytes = match tokio::fs::read(&file.path).await {
-            Ok(b) => b,
+        let handle = match tokio::fs::File::open(&file.path).await {
+            Ok(f) => f,
             Err(e) => {
                 let _ = events
                     .send(SendEvent::FileFailed {
@@ -102,24 +104,37 @@ pub async fn send_files(
                 continue;
             }
         };
-        let total = bytes.len() as u64;
+
+        let total = file.size;
+        let start_time = std::time::Instant::now();
 
         let _ = events
             .send(SendEvent::FileProgress {
                 file_id: file.id.clone(),
                 bytes_sent: 0,
                 total_bytes: total,
+                speed_bytes_per_sec: 0,
+                eta_seconds: 0,
             })
             .await;
 
-        match client::upload_file_bytes(&target, &response.session_id, &file.id, token, bytes).await
+        match client::upload_file_stream(&target, &response.session_id, &file.id, token, handle).await
         {
             Ok(()) => {
+                let elapsed_secs = start_time.elapsed().as_secs_f64();
+                let speed = if elapsed_secs > 0.0 {
+                    (total as f64 / elapsed_secs) as u64
+                } else {
+                    0
+                };
+
                 let _ = events
                     .send(SendEvent::FileProgress {
                         file_id: file.id.clone(),
                         bytes_sent: total,
                         total_bytes: total,
+                        speed_bytes_per_sec: speed,
+                        eta_seconds: 0,
                     })
                     .await;
                 let _ = events

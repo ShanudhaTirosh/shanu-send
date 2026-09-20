@@ -11,11 +11,14 @@
 
 use crate::models::{FileDto, PrepareUploadRequestDto, PrepareUploadResponseDto, RegisterDto};
 use axum::{
-    extract::{Query, State},
+    body::Body,
+    extract::{Multipart, Query, State},
     http::StatusCode,
+    response::Html,
     routing::{get, post},
     Json, Router,
 };
+use futures_util::StreamExt;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -68,6 +71,8 @@ pub enum ServerEvent {
         file_id: String,
         received_bytes: u64,
         total_bytes: u64,
+        speed_bytes_per_sec: u64,
+        eta_seconds: u64,
     },
     UploadComplete {
         session_id: String,
@@ -329,10 +334,134 @@ struct UploadQuery {
     token: String,
 }
 
+#[allow(dead_code)]
+async fn webdrop_page_handler() -> Html<&'static str> {
+    Html(r##"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShanuSend WebDrop</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+  .card { background: #161e2e; border: 1px solid #283548; border-radius: 20px; padding: 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
+  h1 { font-size: 24px; margin: 0 0 8px 0; display: flex; items-center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  p { color: #94a3b8; font-size: 14px; margin: 0 0 24px 0; }
+  .dropzone { border: 2px dashed #334155; border-radius: 14px; padding: 40px 20px; cursor: pointer; transition: all 0.2s; background: #0f172a; display: flex; flex-direction: column; align-items: center; }
+  .dropzone:hover { border-color: #6366f1; background: #1e1b4b; }
+  .btn { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 20px; font-size: 16px; transition: opacity 0.2s; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .progress { width: 100%; background: #1e293b; border-radius: 999px; height: 10px; margin-top: 20px; overflow: hidden; display: none; }
+  .bar { height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); width: 0%; transition: width 0.1s; }
+  #status { margin-top: 14px; font-size: 14px; font-weight: 500; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .icon-svg { width: 44px; height: 44px; stroke: #38bdf8; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-small { width: 20px; height: 20px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>
+    <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    ShanuSend WebDrop
+  </h1>
+  <p>AirDrop & Nearby Share Portal. Send files directly to this device from Safari / Chrome!</p>
+  <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    <div style="margin-top: 12px; font-weight: 500; color: #cbd5e1;">Tap or Drag files here to send</div>
+  </div>
+  <input type="file" id="fi" multiple style="display:none" onchange="updateFiles()">
+  <button class="btn" id="sbtn" onclick="upload()" disabled>Send Files</button>
+  <div class="progress" id="prg"><div class="bar" id="bar"></div></div>
+  <div id="status"></div>
+</div>
+<script>
+  let files = [];
+  function updateFiles() {
+    files = Array.from(document.getElementById('fi').files);
+    if(files.length > 0) {
+      document.getElementById('dz').innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg><div style="margin-top:12px;font-weight:600;color:#e2e8f0">${files.length} file(s) selected</div>`;
+      document.getElementById('sbtn').disabled = false;
+    }
+  }
+  async function upload() {
+    if(!files.length) return;
+    document.getElementById('sbtn').disabled = true;
+    document.getElementById('prg').style.display = 'block';
+    const status = document.getElementById('status');
+    const formData = new FormData();
+    for(const f of files) formData.append('files', f);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/webdrop/upload');
+    xhr.upload.onprogress = (e) => {
+      if(e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        document.getElementById('bar').style.width = pct + '%';
+        status.innerHTML = `Uploading: ${pct}% (${(e.loaded/1048576).toFixed(1)} MB / ${(e.total/1048576).toFixed(1)} MB)`;
+      }
+    };
+    xhr.onload = () => {
+      if(xhr.status === 200) {
+        status.innerHTML = `<span style="color:#34d399">Files transferred successfully!</span>`;
+        document.getElementById('bar').style.width = '100%';
+      } else {
+        status.innerHTML = `<span style="color:#f87171">Upload failed</span>`;
+      }
+    };
+    xhr.send(formData);
+  }
+</script>
+</body>
+</html>"##)
+}
+
+#[allow(dead_code, unused_variables)]
+async fn webdrop_upload_handler(
+    State(state): State<Arc<ServerState>>,
+    mut multipart: Multipart,
+) -> Result<StatusCode, StatusCode> {
+    let save_dir = state.save_dir.lock().await.clone();
+    tokio::fs::create_dir_all(&save_dir)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let session_id = Uuid::new_v4().to_string();
+
+    while let Ok(Some(mut field)) = multipart.next_field().await {
+        let file_name = field
+            .file_name()
+            .map(sanitize_filename)
+            .unwrap_or_else(|| format!("webdrop_{}.bin", Uuid::new_v4()));
+
+        let dest_path = unique_dest_path(&save_dir, &file_name).await;
+        let mut f = tokio::fs::File::create(&dest_path)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let mut _received: u64 = 0;
+        while let Ok(Some(chunk)) = field.chunk().await {
+            f.write_all(&chunk)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            _received += chunk.len() as u64;
+        }
+
+        let file_id = Uuid::new_v4().to_string();
+        let _ = state
+            .events
+            .send(ServerEvent::UploadComplete {
+                session_id: session_id.clone(),
+                file_id,
+                saved_path: dest_path,
+            })
+            .await;
+    }
+
+    Ok(StatusCode::OK)
+}
+
 async fn upload_handler(
     State(state): State<Arc<ServerState>>,
     Query(q): Query<UploadQuery>,
-    body: axum::body::Bytes,
+    body: Body,
 ) -> Result<StatusCode, StatusCode> {
     let (file_name, expected_size) = {
         let sessions = state.sessions.lock().await;
@@ -357,19 +486,45 @@ async fn upload_handler(
     let mut f = tokio::fs::File::create(&dest_path)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    f.write_all(&body)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let _ = state
-        .events
-        .send(ServerEvent::UploadProgress {
-            session_id: q.session_id.clone(),
-            file_id: q.file_id.clone(),
-            received_bytes: body.len() as u64,
-            total_bytes: expected_size,
-        })
-        .await;
+    let mut stream = body.into_data_stream();
+    let mut received_bytes: u64 = 0;
+    let start_time = std::time::Instant::now();
+    let mut last_emit = std::time::Instant::now();
+
+    while let Some(chunk_res) = stream.next().await {
+        let chunk = chunk_res.map_err(|_| StatusCode::BAD_REQUEST)?;
+        f.write_all(&chunk)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        received_bytes += chunk.len() as u64;
+
+        let now = std::time::Instant::now();
+        if now.duration_since(last_emit).as_millis() >= 150 || received_bytes == expected_size {
+            last_emit = now;
+            let elapsed_secs = start_time.elapsed().as_secs_f64();
+            let speed = if elapsed_secs > 0.0 {
+                (received_bytes as f64 / elapsed_secs) as u64
+            } else {
+                0
+            };
+            let remaining = expected_size.saturating_sub(received_bytes);
+            let eta = if speed > 0 { remaining / speed } else { 0 };
+
+            let _ = state
+                .events
+                .send(ServerEvent::UploadProgress {
+                    session_id: q.session_id.clone(),
+                    file_id: q.file_id.clone(),
+                    received_bytes,
+                    total_bytes: expected_size,
+                    speed_bytes_per_sec: speed,
+                    eta_seconds: eta,
+                })
+                .await;
+        }
+    }
+
     let _ = state
         .events
         .send(ServerEvent::UploadComplete {

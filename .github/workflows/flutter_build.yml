@@ -1,0 +1,58 @@
+name: Flutter ShanuSend Build Matrix
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build Flutter App on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: |
+          cd flutter_app
+          flutter pub get
+
+      - name: Analyze Code
+        run: |
+          cd flutter_app
+          flutter analyze
+
+      - name: Build Android APK (on Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd flutter_app
+          flutter build apk --release
+
+      - name: Build Windows Executable (on Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd flutter_app
+          flutter build windows --release
+
+      - name: Build macOS Application (on macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd flutter_app
+          flutter build macos --release

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Zap, Settings as SettingsIcon, History as HistoryIcon } from "lucide-react";
+import { Send, Zap, Settings as SettingsIcon, History as HistoryIcon, QrCode } from "lucide-react";
 import type { Device } from "./types";
 import { useDevices } from "./features/discovery/useDevices";
 import { DeviceList } from "./features/discovery/DeviceList";
@@ -10,6 +10,7 @@ import { IncomingRequestModal } from "./features/transfer/IncomingRequestModal";
 import { IncomingTransferPanel } from "./features/transfer/IncomingTransferPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
+import { AirDropBridgeModal } from "./features/airdrop/AirDropBridgeModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [airDropOpen, setAirDropOpen] = useState(false);
 
   const handleSend = async () => {
     if (!selected || files.length === 0) return;
@@ -38,6 +40,7 @@ export default function App() {
       <IncomingRequestModal />
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
+      <AirDropBridgeModal open={airDropOpen} onClose={() => setAirDropOpen(false)} />
 
       <header className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
@@ -46,10 +49,18 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-lg font-semibold leading-tight">ShanuSend</h1>
-            <p className="text-xs text-slate-500">LocalSend-compatible &middot; ShanuTechX</p>
+            <p className="text-xs text-slate-500">LocalSend & AirDrop compatible &middot; ShanuTechX</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAirDropOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/20"
+            aria-label="AirDrop & WebDrop Portal"
+          >
+            <QrCode size={15} />
+            <span>AirDrop / WebDrop</span>
+          </button>
           <button
             onClick={() => setHistoryOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
