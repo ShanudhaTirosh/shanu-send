@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod commands;
 mod state;
 
@@ -9,7 +11,7 @@ use tauri::{Emitter, Manager};
 use tracing::info;
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    let _ = tracing_subscriber::fmt().try_init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
