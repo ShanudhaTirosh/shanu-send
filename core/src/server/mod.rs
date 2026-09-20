@@ -219,6 +219,8 @@ pub fn build_router(state: Arc<ServerState>) -> Router {
         )
         .route("/api/localsend/v2/upload", post(upload_handler))
         .route("/api/localsend/v2/cancel", post(cancel_handler))
+        .route("/webdrop", get(webdrop_page_handler))
+        .route("/api/webdrop/upload", post(webdrop_upload_handler))
         .with_state(state)
 }
 
@@ -334,7 +336,6 @@ struct UploadQuery {
     token: String,
 }
 
-#[allow(dead_code)]
 async fn webdrop_page_handler() -> Html<&'static str> {
     Html(
         r##"<!DOCTYPE html>
@@ -415,7 +416,6 @@ async fn webdrop_page_handler() -> Html<&'static str> {
     )
 }
 
-#[allow(dead_code, unused_variables)]
 async fn webdrop_upload_handler(
     State(state): State<Arc<ServerState>>,
     mut multipart: Multipart,

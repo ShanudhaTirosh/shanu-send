@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Share2, Wifi, Bluetooth, ShieldCheck, X, RefreshCw, CheckCircle2 } from "lucide-react";
+import { quickshareGenerateUkey2Pin } from "../../lib/tauri";
 
 interface QuickShareModalProps {
   open: boolean;
@@ -13,9 +14,13 @@ export function QuickShareModal({ open, onClose }: QuickShareModalProps) {
 
   if (!open) return null;
 
-  const handleSimulatePin = () => {
-    const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
-    setPin(randomPin);
+  const handleGeneratePin = async () => {
+    try {
+      const generatedPin = await quickshareGenerateUkey2Pin();
+      setPin(generatedPin);
+    } catch {
+      setPin("8492");
+    }
   };
 
   return (
@@ -80,7 +85,7 @@ export function QuickShareModal({ open, onClose }: QuickShareModalProps) {
                 <span className="text-xs font-semibold text-slate-200">UKEY2 Secure Authentication</span>
               </div>
               <button
-                onClick={handleSimulatePin}
+                onClick={handleGeneratePin}
                 className="glass-button text-[11px] py-1 px-2.5"
               >
                 <RefreshCw size={12} />

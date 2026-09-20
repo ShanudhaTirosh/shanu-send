@@ -242,6 +242,12 @@ fn main() {
             commands::kdeconnect_run_remote_command,
             commands::kdeconnect_send_sms,
             commands::kdeconnect_mpris_control,
+            commands::scrcpy_check_installed,
+            commands::scrcpy_list_adb_devices,
+            commands::scrcpy_adb_connect,
+            commands::scrcpy_adb_pair,
+            commands::scrcpy_start_mirror,
+            commands::quickshare_generate_ukey2_pin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ShanuSend");

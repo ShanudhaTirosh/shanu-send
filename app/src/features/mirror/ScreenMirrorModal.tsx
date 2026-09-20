@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import type { Device } from "../../types";
 
+import { scrcpyAdbPair, scrcpyAdbConnect, scrcpyStartMirror } from "../../lib/tauri";
+
 interface ScreenMirrorModalProps {
   open: boolean;
   onClose: () => void;
@@ -62,15 +64,36 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
 
   const showActionFeedback = (msg: string) => {
     setFeedback(msg);
-    setTimeout(() => setFeedback(null), 2000);
+    setTimeout(() => setFeedback(null), 2500);
   };
 
-  const handlePairAdb = () => {
+  const handlePairAdb = async () => {
     if (!adbIp || !pairingCode) return;
     setAdbStatus("Pairing with Wireless ADB...");
-    setTimeout(() => {
-      setAdbStatus("Successfully Paired & Connected via Wireless ADB!");
-    }, 1500);
+    try {
+      const targetAddr = `${adbIp}:${adbPort}`;
+      const pairRes = await scrcpyAdbPair(targetAddr, pairingCode);
+      setAdbStatus(`Paired: ${pairRes}. Connecting...`);
+      const connRes = await scrcpyAdbConnect(targetAddr);
+      setAdbStatus(`Connected: ${connRes}`);
+    } catch (err) {
+      setAdbStatus(`ADB Error: ${err}`);
+    }
+  };
+
+  const toggleMirror = async () => {
+    if (!isMirroring) {
+      try {
+        const res = await scrcpyStartMirror(selectedDevice?.ip || undefined, parseInt(resolution) || 1080, parseInt(bitrate) * 1000000);
+        setIsMirroring(true);
+        showActionFeedback(res);
+      } catch (e: any) {
+        showActionFeedback(`Scrcpy Error: ${e}`);
+      }
+    } else {
+      setIsMirroring(false);
+      showActionFeedback("Mirror session ended.");
+    }
   };
 
   return (
@@ -438,7 +461,7 @@ export function ScreenMirrorModal({ open, onClose, selectedDevice }: ScreenMirro
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setIsMirroring(!isMirroring)}
+              onClick={toggleMirror}
               className={`glass-button-primary text-xs ${
                 isMirroring ? "from-pink-500/30 to-purple-600/30 border-pink-500/50 text-pink-300" : ""
               }`}

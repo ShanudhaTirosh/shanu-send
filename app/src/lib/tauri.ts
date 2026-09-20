@@ -413,5 +413,41 @@ export async function kdeconnectMprisControl(action: string, volume?: number): P
   }
 }
 
+export interface AdbDevice {
+  id: string;
+  model: string;
+  state: string;
+}
+
+export async function scrcpyCheckInstalled(): Promise<boolean> {
+  if (isTauri) return realInvoke<boolean>("scrcpy_check_installed");
+  return true;
+}
+
+export async function scrcpyListAdbDevices(): Promise<AdbDevice[]> {
+  if (isTauri) return realInvoke<AdbDevice[]>("scrcpy_list_adb_devices");
+  return [{ id: "mock-adb-1", model: "Pixel 8 Pro", state: "device" }];
+}
+
+export async function scrcpyAdbConnect(address: string): Promise<string> {
+  if (isTauri) return realInvoke<string>("scrcpy_adb_connect", { address });
+  return `connected to ${address}`;
+}
+
+export async function scrcpyAdbPair(address: string, code: string): Promise<string> {
+  if (isTauri) return realInvoke<string>("scrcpy_adb_pair", { address, code });
+  return `paired with ${address}`;
+}
+
+export async function scrcpyStartMirror(deviceId?: string, maxSize?: number, bitRate?: number): Promise<string> {
+  if (isTauri) return realInvoke<string>("scrcpy_start_mirror", { deviceId, maxSize, bitRate });
+  return "Scrcpy process launched (Mock)";
+}
+
+export async function quickshareGenerateUkey2Pin(): Promise<string> {
+  if (isTauri) return realInvoke<string>("quickshare_generate_ukey2_pin");
+  return "8492";
+}
+
 export { isTauri };
 

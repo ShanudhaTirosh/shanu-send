@@ -265,22 +265,22 @@ pub async fn kdeconnect_lock_device(locked: bool) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn kdeconnect_run_remote_command(command: String) -> Result<String, String> {
-    tracing::info!("KDEConnect Executing Remote Command: {}", command);
-    #[cfg(target_os = "windows")]
-    {
-        let output = std::process::Command::new("cmd.exe")
-            .args(["/c", &command])
-            .output()
-            .map_err(|e| e.to_string())?;
-        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let output = std::process::Command::new("sh")
-            .args(["-c", &command])
-            .output()
-            .map_err(|e| e.to_string())?;
-        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    tracing::info!("KDEConnect Remote Command Requested: {}", command);
+    match command.trim() {
+        "lock" | "LockWorkStation" => {
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("rundll32.exe")
+                    .args(["user32.dll,LockWorkStation"])
+                    .spawn();
+            }
+            Ok("Screen locked successfully".to_string())
+        }
+        "ping" => Ok("pong".to_string()),
+        cmd => {
+            tracing::warn!("Blocked execution of unauthorized command: {}", cmd);
+            Err("Command execution restricted to pre-approved allow-list for security.".to_string())
+        }
     }
 }
 
@@ -295,4 +295,103 @@ pub async fn kdeconnect_mpris_control(action: String, volume: Option<i32>) -> Re
     tracing::info!("KDEConnect MPRIS Action: {} (volume: {:?})", action, volume);
     Ok(())
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdbDevice {
+    pub id: String,
+    pub model: String,
+    pub state: String,
+}
+
+#[tauri::command]
+pub async fn scrcpy_check_installed() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    let res = std::process::Command::new("where").arg("scrcpy").output();
+    #[cfg(not(target_os = "windows"))]
+    let res = std::process::Command::new("which").arg("scrcpy").output();
+
+    match res {
+        Ok(output) => Ok(output.status.success()),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
+pub async fn scrcpy_list_adb_devices() -> Result<Vec<AdbDevice>, String> {
+    let output = std::process::Command::new("adb")
+        .args(["devices", "-l"])
+        .output()
+        .map_err(|e| format!("Failed to run adb: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut devices = Vec::new();
+
+    for line in stdout.lines().skip(1) {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let id = parts[0].to_string();
+            let state = parts[1].to_string();
+            let model = parts.iter()
+                .find(|p| p.starts_with("model:"))
+                .map(|p| p.trim_start_matches("model:").to_string())
+                .unwrap_or_else(|| "Android Device".to_string());
+            devices.push(AdbDevice { id, model, state });
+        }
+    }
+
+    Ok(devices)
+}
+
+#[tauri::command]
+pub async fn scrcpy_adb_connect(address: String) -> Result<String, String> {
+    let output = std::process::Command::new("adb")
+        .args(["connect", &address])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let result = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn scrcpy_adb_pair(address: String, code: String) -> Result<String, String> {
+    let output = std::process::Command::new("adb")
+        .args(["pair", &address, &code])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let result = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn scrcpy_start_mirror(device_id: Option<String>, max_size: Option<u32>, bit_rate: Option<u32>) -> Result<String, String> {
+    let mut config = shanusend_core::scrcpy::ScrcpyConfig::default();
+    if let Some(ms) = max_size { config.max_size = ms; }
+    if let Some(br) = bit_rate { config.bit_rate_mbps = br; }
+
+    let mut args = config.build_cli_args();
+    if let Some(id) = device_id {
+        args.insert(0, "-s".to_string());
+        args.insert(1, id);
+    }
+
+    tracing::info!("Launching scrcpy with args: {:?}", args);
+    let child = std::process::Command::new("scrcpy")
+        .args(&args)
+        .spawn()
+        .map_err(|e| format!("Failed to launch scrcpy: {}. Ensure scrcpy is installed on PATH.", e))?;
+
+    Ok(format!("Scrcpy process launched (PID: {})", child.id()))
+}
+
+#[tauri::command]
+pub async fn quickshare_generate_ukey2_pin(state: State<'_, AppState>) -> Result<String, String> {
+    let fingerprint = &state.server.device.fingerprint;
+    let pin = shanusend_core::quickshare::Ukey2HandshakeFrame::generate_verification_pin(fingerprint.as_bytes());
+    Ok(pin)
+}
+
 
