@@ -511,7 +511,7 @@ async fn upload_handler(
                 0
             };
             let remaining = expected_size.saturating_sub(received_bytes);
-            let eta = if speed > 0 { remaining / speed } else { 0 };
+            let eta = remaining.checked_div(speed).unwrap_or(0);
 
             let _ = state
                 .events
