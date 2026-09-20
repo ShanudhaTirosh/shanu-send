@@ -32,8 +32,6 @@ pub struct DiscoveryEvent {
 fn build_multicast_socket() -> std::io::Result<UdpSocket> {
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
     socket.set_reuse_address(true)?;
-    #[cfg(unix)]
-    socket.set_reuse_port(true).ok(); // best-effort, not available on all unix targets
     socket.set_nonblocking(true)?;
 
     let bind_addr: SocketAddr = SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, DEFAULT_PORT).into();
