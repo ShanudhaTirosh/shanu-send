@@ -22,6 +22,7 @@ pub mod models;
 pub mod phone_utils;
 pub mod quickshare;
 pub mod remote_input;
+pub mod scrcpy;
 pub mod server;
 pub mod transfer;
 
