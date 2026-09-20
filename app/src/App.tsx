@@ -14,6 +14,7 @@ import { AirDropBridgeModal } from "./features/airdrop/AirDropBridgeModal";
 import { RemoteTouchpadPanel } from "./features/remote/RemoteTouchpadPanel";
 import { PhoneControlPanel } from "./features/phone/PhoneControlPanel";
 import { ScreenMirrorModal } from "./features/mirror/ScreenMirrorModal";
+import { QuickShareModal } from "./features/quickshare/QuickShareModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 type ActiveTab = "transfer" | "touchpad" | "phone";
@@ -30,6 +31,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [airDropOpen, setAirDropOpen] = useState(false);
+  const [quickShareOpen, setQuickShareOpen] = useState(false);
   const [mirrorOpen, setMirrorOpen] = useState(false);
 
   const handleSend = async () => {
@@ -50,6 +52,7 @@ export default function App() {
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <AirDropBridgeModal open={airDropOpen} onClose={() => setAirDropOpen(false)} />
+      <QuickShareModal open={quickShareOpen} onClose={() => setQuickShareOpen(false)} />
       <ScreenMirrorModal open={mirrorOpen} onClose={() => setMirrorOpen(false)} selectedDevice={selected} />
 
       {/* Header Bar */}
@@ -68,6 +71,13 @@ export default function App() {
 
         {/* Action Header Items */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setQuickShareOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20"
+            title="Quick Share Engine"
+          >
+            <span>Quick Share</span>
+          </button>
           <button
             onClick={() => setMirrorOpen(true)}
             className="glass-button text-xs"

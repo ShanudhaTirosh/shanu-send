@@ -20,6 +20,7 @@ pub mod discovery;
 pub mod history;
 pub mod models;
 pub mod phone_utils;
+pub mod quickshare;
 pub mod remote_input;
 pub mod server;
 pub mod transfer;
