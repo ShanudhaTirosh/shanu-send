@@ -150,6 +150,7 @@ fn main() {
             // --- Sending side: multicast discovery listener -----------------
             let (mut discovery_rx, _discovery_handle) = discovery::listen();
             let discovery_events_handle = app_handle.clone();
+            let discovery_alias = alias.clone();
             tauri::async_runtime::spawn(async move {
                 while let Some(evt) = discovery_rx.recv().await {
                     // Don't surface our own announcements back to ourselves.
@@ -181,7 +182,7 @@ fn main() {
                         .unwrap_or(evt.dto.announcement.unwrap_or(false))
                     {
                         let self_dto = discovery::build_self_announcement(
-                            &alias,
+                            &discovery_alias,
                             &cert.fingerprint,
                             port,
                             false,

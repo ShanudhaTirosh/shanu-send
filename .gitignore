@@ -16,9 +16,8 @@ yarn-error.log*
 
 # Tauri & Mobile Builds
 app/src-tauri/target/
-app/src-tauri/gen/android/app/build/
-app/src-tauri/gen/android/.gradle/
-app/src-tauri/gen/android/local.properties
+app/src-tauri/gen/
+
 
 # Environment & Temp Files
 .env
