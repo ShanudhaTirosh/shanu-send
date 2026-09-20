@@ -50,6 +50,7 @@ export const ShanuConnectModal: React.FC<ShanuConnectModalProps> = ({
   const [isCharging, setIsCharging] = useState<boolean>(false);
   const [isRinging, setIsRinging] = useState<boolean>(false);
   const [isDeviceLocked, setIsDeviceLocked] = useState<boolean>(false);
+  const [hasReceivedPacket, setHasReceivedPacket] = useState<boolean>(false);
 
   // MPRIS State
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -76,9 +77,12 @@ export const ShanuConnectModal: React.FC<ShanuConnectModalProps> = ({
   // Notifications Stream
   const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([]);
 
+  const isConnected = deviceName !== 'ShanuConnect Device' || hasReceivedPacket;
+
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     onShanuConnectEvent((payload: { type: string; body: any }) => {
+      setHasReceivedPacket(true);
       if (payload.type === 'shanuconnect.battery' || payload.type === 'kdeconnect.battery') {
         if (typeof payload.body?.currentCharge === 'number') {
           setBatteryLevel(payload.body.currentCharge);
@@ -200,9 +204,15 @@ export const ShanuConnectModal: React.FC<ShanuConnectModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-white tracking-wide">{deviceName}</h2>
-                <span className="px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                  <Wifi className="w-3 h-3" /> ShanuConnect Connected
-                </span>
+                {isConnected ? (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                    <Wifi className="w-3 h-3 animate-pulse" /> ShanuConnect Connected
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-full flex items-center gap-1">
+                    <Radio className="w-3 h-3 animate-spin text-amber-400" /> Listening on Port 1716
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400">ShanuConnect Protocol v7 • All 36 Plugins Active</p>
             </div>

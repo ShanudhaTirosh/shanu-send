@@ -17,7 +17,7 @@ import { QuickShareModal } from "./features/quickshare/QuickShareModal";
 import { ShanuConnectModal } from "./features/shanuconnect/ShanuConnectModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
-type ActiveTab = "transfer" | "mirror" | "kdehub";
+type ActiveTab = "transfer" | "mirror" | "shanuconnect";
 
 export default function App() {
   const { devices, scanning, rescan } = useDevices();
@@ -74,9 +74,9 @@ export default function App() {
         {/* Action Header Items */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setKdeConnectOpen(true)}
+            onClick={() => setActiveTab("shanuconnect")}
             className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-            title="ShanuConnect Suite"
+            title="ShanuConnect Suite Workspace"
           >
             <Smartphone size={15} className="text-cyan-400" />
             <span>ShanuConnect Hub</span>
@@ -169,13 +169,13 @@ export default function App() {
           <span>Screen Mirroring</span>
         </button>
         <button
-          onClick={() => setActiveTab("kdehub")}
+          onClick={() => setActiveTab("shanuconnect")}
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "kdehub" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+            activeTab === "shanuconnect" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
           }`}
         >
           <Smartphone size={15} />
-          <span>KDE Device Hub</span>
+          <span>ShanuConnect Hub</span>
         </button>
       </div>
 
@@ -238,7 +238,9 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === "kdehub" && <PhoneControlPanel selectedDevice={selected} />}
+          {activeTab === "shanuconnect" && (
+            <PhoneControlPanel selectedDevice={selected} devices={devices} />
+          )}
         </div>
 
         {/* Discovery Device Sidebar */}
