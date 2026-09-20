@@ -14,7 +14,7 @@ import { AirDropBridgeModal } from "./features/airdrop/AirDropBridgeModal";
 import { PhoneControlPanel } from "./features/phone/PhoneControlPanel";
 import { ScreenMirrorModal } from "./features/mirror/ScreenMirrorModal";
 import { QuickShareModal } from "./features/quickshare/QuickShareModal";
-import { KdeConnectModal } from "./features/kdeconnect/KdeConnectModal";
+import { ShanuConnectModal } from "./features/shanuconnect/ShanuConnectModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 type ActiveTab = "transfer" | "mirror" | "kdehub";
@@ -55,7 +55,7 @@ export default function App() {
       <AirDropBridgeModal open={airDropOpen} onClose={() => setAirDropOpen(false)} />
       <QuickShareModal open={quickShareOpen} onClose={() => setQuickShareOpen(false)} />
       <ScreenMirrorModal open={mirrorOpen} onClose={() => setMirrorOpen(false)} selectedDevice={selected} />
-      <KdeConnectModal isOpen={kdeConnectOpen} onClose={() => setKdeConnectOpen(false)} deviceName={selected?.alias || "KDE Device"} />
+      <ShanuConnectModal isOpen={kdeConnectOpen} onClose={() => setKdeConnectOpen(false)} deviceName={selected?.alias || "ShanuConnect Device"} />
 
       {/* Header Bar */}
       <header className="flex items-center justify-between gap-3">
@@ -67,7 +67,7 @@ export default function App() {
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               ShanuSend <span className="rounded-full bg-neon-cyan/10 px-2 py-0.5 text-[10px] font-semibold text-neon-cyan border border-neon-cyan/20">Desktop Pro v2.5</span>
             </h1>
-            <p className="text-xs text-slate-400">Universal LAN Sharing, Scrcpy Mirroring & KDE Control Suite</p>
+            <p className="text-xs text-slate-400">Universal LAN Sharing, Scrcpy Mirroring & ShanuConnect Suite</p>
           </div>
         </div>
 
@@ -76,10 +76,10 @@ export default function App() {
           <button
             onClick={() => setKdeConnectOpen(true)}
             className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-            title="KDE Connect Desktop Suite"
+            title="ShanuConnect Suite"
           >
             <Smartphone size={15} className="text-cyan-400" />
-            <span>KDE Hub</span>
+            <span>ShanuConnect Hub</span>
           </button>
           <button
             onClick={() => setQuickShareOpen(true)}

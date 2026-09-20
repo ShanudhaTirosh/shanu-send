@@ -19,50 +19,52 @@ import {
   Sparkles,
 } from 'lucide-react';
 import {
-  kdeconnectTriggerFindPhone,
-  kdeconnectLockDevice,
-  kdeconnectRunRemoteCommand,
-  kdeconnectSendSms,
-  kdeconnectMprisControl,
+  shanuconnectTriggerFindPhone,
+  shanuconnectLockDevice,
+  shanuconnectRunRemoteCommand,
+  shanuconnectSendSms,
+  shanuconnectMprisControl,
+  onShanuConnectEvent,
 } from '../../lib/tauri';
+import { useEffect } from 'react';
 
-interface KdeConnectModalProps {
+interface ShanuConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
   deviceName?: string;
 }
 
+export type KdeConnectModalProps = ShanuConnectModalProps;
+
 type TabType = 'notifications' | 'sms' | 'commands' | 'media';
 
-export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
+export const ShanuConnectModal: React.FC<ShanuConnectModalProps> = ({
   isOpen,
   onClose,
-  deviceName = 'KDE Connect Device',
+  deviceName = 'ShanuConnect Device',
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('notifications');
 
   // Battery & Phone State
-  const [batteryLevel, _setBatteryLevel] = useState<number | null>(85);
-  const [isCharging, _setIsCharging] = useState<boolean>(false);
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
+  const [isCharging, setIsCharging] = useState<boolean>(false);
   const [isRinging, setIsRinging] = useState<boolean>(false);
   const [isDeviceLocked, setIsDeviceLocked] = useState<boolean>(false);
 
   // MPRIS State
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [trackTitle, _setTrackTitle] = useState<string>('Starlight Symphony');
-  const [artistName, _setArtistName] = useState<string>('KDE Connect MPRIS Stream');
+  const [trackTitle, setTrackTitle] = useState<string>('No Media Playing');
+  const [artistName, setArtistName] = useState<string>('Select or play media on connected device');
   const [mediaVolume, setMediaVolume] = useState<number>(100);
-  const [mediaPosition, setMediaPosition] = useState<number>(135);
-  const [mediaDuration, _setMediaDuration] = useState<number>(225);
+  const [mediaPosition, setMediaPosition] = useState<number>(0);
+  const [mediaDuration, setMediaDuration] = useState<number>(0);
 
   // SMS & Contacts State
   const [contactSearch, setContactSearch] = useState<string>('');
-  const [selectedContact, setSelectedContact] = useState<string>('+1 (555) 019-2834');
+  const [selectedContact, setSelectedContact] = useState<string>('');
   const [smsInput, setSmsInput] = useState<string>('');
-  const [contacts] = useState<Array<string>>(['+1 (555) 019-2834', '+1 (555) 012-9876']);
-  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
-    { sender: 'Contact', text: 'Hey, file transfer received via ShanuSend LAN!', time: '10:42 AM' },
-  ]);
+  const [contacts] = useState<Array<string>>([]);
+  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([]);
 
   // Remote Commands
   const [customCommand, setCustomCommand] = useState<string>('');
@@ -72,9 +74,58 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   ]);
 
   // Notifications Stream
-  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([
-    { id: '1', app: 'ShanuSend', title: 'Device Connected', body: 'Paired over local Wi-Fi protocol v7' },
-  ]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; app: string; title: string; body: string }>>([]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onShanuConnectEvent((payload: { type: string; body: any }) => {
+      if (payload.type === 'shanuconnect.battery' || payload.type === 'kdeconnect.battery') {
+        if (typeof payload.body?.currentCharge === 'number') {
+          setBatteryLevel(payload.body.currentCharge);
+        }
+        if (typeof payload.body?.isCharging === 'boolean') {
+          setIsCharging(payload.body.isCharging);
+        }
+      } else if (payload.type === 'shanuconnect.mpris' || payload.type === 'kdeconnect.mpris') {
+        if (payload.body?.title) setTrackTitle(payload.body.title);
+        if (payload.body?.artist) setArtistName(payload.body.artist);
+        if (typeof payload.body?.isPlaying === 'boolean') setIsPlaying(payload.body.isPlaying);
+        if (typeof payload.body?.pos === 'number') setMediaPosition(payload.body.pos);
+        if (typeof payload.body?.length === 'number') setMediaDuration(payload.body.length);
+      } else if (payload.type === 'shanuconnect.notifications' || payload.type === 'kdeconnect.notifications') {
+        setNotifications((prev) => [
+          {
+            id: payload.body?.id || String(Date.now()),
+            app: payload.body?.appName || 'Shanu Device',
+            title: payload.body?.title || 'Notification',
+            body: payload.body?.body || '',
+          },
+          ...prev,
+        ]);
+      } else if (payload.type === 'shanuconnect.sms' || payload.type === 'kdeconnect.sms') {
+        if (payload.body?.sendBody) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: payload.body?.sendTo || 'Remote',
+              text: payload.body.sendBody,
+              time: 'Just now',
+            },
+          ]);
+        }
+      } else if (payload.type === 'shanuconnect.lockdevice' || payload.type === 'kdeconnect.lockdevice') {
+        if (typeof payload.body?.isLocked === 'boolean') {
+          setIsDeviceLocked(payload.body.isLocked);
+        }
+      }
+    }).then((fn: (() => void) | undefined) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -87,13 +138,13 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   const handleToggleRing = async () => {
     const nextState = !isRinging;
     setIsRinging(nextState);
-    await kdeconnectTriggerFindPhone(nextState);
+    await shanuconnectTriggerFindPhone(nextState);
   };
 
   const handleToggleLock = async () => {
     const nextState = !isDeviceLocked;
     setIsDeviceLocked(nextState);
-    await kdeconnectLockDevice(nextState);
+    await shanuconnectLockDevice(nextState);
   };
 
   const handleSendSms = async () => {
@@ -101,7 +152,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
     const text = smsInput;
     setMessages((prev) => [...prev, { sender: 'You', text, time: 'Just now' }]);
     setSmsInput('');
-    await kdeconnectSendSms(selectedContact, text);
+    await shanuconnectSendSms(selectedContact, text);
   };
 
   const handleAddCommand = () => {
@@ -114,18 +165,18 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
   };
 
   const handleRunCommand = async (cmdString: string) => {
-    await kdeconnectRunRemoteCommand(cmdString);
+    await shanuconnectRunRemoteCommand(cmdString);
   };
 
   const handleMediaPlayPause = async () => {
     const nextState = !isPlaying;
     setIsPlaying(nextState);
-    await kdeconnectMprisControl(nextState ? 'play' : 'pause');
+    await shanuconnectMprisControl(nextState ? 'play' : 'pause');
   };
 
   const handleVolumeChange = async (newVol: number) => {
     setMediaVolume(newVol);
-    await kdeconnectMprisControl('volume', newVol);
+    await shanuconnectMprisControl('volume', newVol);
   };
 
   const handleSeek = async (e: React.MouseEvent<HTMLDivElement>) => {
@@ -134,7 +185,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
     const percent = Math.max(0, Math.min(1, clickX / rect.width));
     const newPos = Math.round(percent * (mediaDuration || 100));
     setMediaPosition(newPos);
-    await kdeconnectMprisControl('seek', newPos);
+    await shanuconnectMprisControl('seek', newPos);
   };
 
   return (
@@ -150,10 +201,10 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-white tracking-wide">{deviceName}</h2>
                 <span className="px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                  <Wifi className="w-3 h-3" /> KDE Connected
+                  <Wifi className="w-3 h-3" /> ShanuConnect Connected
                 </span>
               </div>
-              <p className="text-xs text-slate-400">KDE Connect Protocol v7 • All 20+ Plugins Active</p>
+              <p className="text-xs text-slate-400">ShanuConnect Protocol v7 • All 36 Plugins Active</p>
             </div>
           </div>
 
@@ -162,7 +213,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
             <div className="flex items-center gap-3 px-3 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs">
               <div className="flex items-center gap-1.5 text-cyan-400">
                 <Battery className="w-4 h-4" />
-                <span>{batteryLevel}% {isCharging && '⚡'}</span>
+                <span>{batteryLevel !== null ? `${batteryLevel}%` : 'N/A'} {isCharging && '⚡'}</span>
               </div>
               <button
                 onClick={handleToggleRing}
@@ -257,7 +308,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
               {/* Playback Controls */}
               <div className="flex items-center gap-6">
                 <button
-                  onClick={() => kdeconnectMprisControl('previous')}
+                  onClick={() => shanuconnectMprisControl('previous')}
                   className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition"
                 >
                   <SkipBack className="w-6 h-6" />
@@ -269,7 +320,7 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
                   {isPlaying ? <Pause className="w-8 h-8 fill-black" /> : <Play className="w-8 h-8 fill-black ml-1" />}
                 </button>
                 <button
-                  onClick={() => kdeconnectMprisControl('next')}
+                  onClick={() => shanuconnectMprisControl('next')}
                   className="p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition"
                 >
                   <SkipForward className="w-6 h-6" />
@@ -474,3 +525,5 @@ export const KdeConnectModal: React.FC<KdeConnectModalProps> = ({
     </div>
   );
 };
+
+export const KdeConnectModal = ShanuConnectModal;

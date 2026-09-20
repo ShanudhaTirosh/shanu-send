@@ -43,7 +43,18 @@ fn main() {
                 ServerState::new(device_info, port, false, None, state::default_save_dir());
 
             let history_path = app_data_dir.join("history.json");
-            let kde_engine = std::sync::Arc::new(shanusend_core::kdeconnect::KdeConnectEngine::new(alias.clone()));
+            let shanu_app_handle = app_handle.clone();
+            let kde_engine = std::sync::Arc::new(shanusend_core::shanuconnect::ShanuConnectEngine::new_with_callback(
+                alias.clone(),
+                std::sync::Arc::new(move |event_type, body| {
+                    let payload = serde_json::json!({
+                        "type": event_type,
+                        "body": body,
+                    });
+                    let _ = shanu_app_handle.emit("shanuconnect-event", &payload);
+                    let _ = shanu_app_handle.emit("kdeconnect-event", &payload);
+                }),
+            ));
             tauri::async_runtime::spawn(kde_engine.clone().start_listeners());
 
             app.manage(AppState {
@@ -239,6 +250,12 @@ fn main() {
             commands::rename_device,
             commands::list_history,
             commands::clear_history,
+            commands::shanuconnect_send_mousepad,
+            commands::shanuconnect_trigger_find_phone,
+            commands::shanuconnect_lock_device,
+            commands::shanuconnect_run_remote_command,
+            commands::shanuconnect_send_sms,
+            commands::shanuconnect_mpris_control,
             commands::kdeconnect_send_mousepad,
             commands::kdeconnect_trigger_find_phone,
             commands::kdeconnect_lock_device,

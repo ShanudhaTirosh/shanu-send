@@ -335,13 +335,65 @@ pub async fn kdeconnect_mpris_control(
     action: String,
     volume: Option<i32>,
 ) -> Result<(), String> {
-    tracing::info!("KDEConnect MPRIS Action: {} (volume: {:?})", action, volume);
-    let packet = shanusend_core::kdeconnect::KdePacket::new(
-        "kdeconnect.mpris",
+    tracing::info!("ShanuConnect MPRIS Action: {} (volume: {:?})", action, volume);
+    let packet = shanusend_core::shanuconnect::ShanuPacket::new(
+        "shanuconnect.mpris",
         serde_json::json!({ "player": "ShanuSendPlayer", "action": action, "volume": volume }),
     );
     let _ = state.kde_engine.process_incoming_packet(packet).await;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn shanuconnect_send_mousepad(
+    state: State<'_, AppState>,
+    dx: Option<f32>,
+    dy: Option<f32>,
+    click: Option<String>,
+) -> Result<(), String> {
+    kdeconnect_send_mousepad(state, dx, dy, click).await
+}
+
+#[tauri::command]
+pub async fn shanuconnect_trigger_find_phone(
+    state: State<'_, AppState>,
+    ring: bool,
+) -> Result<(), String> {
+    kdeconnect_trigger_find_phone(state, ring).await
+}
+
+#[tauri::command]
+pub async fn shanuconnect_lock_device(
+    state: State<'_, AppState>,
+    locked: bool,
+) -> Result<(), String> {
+    kdeconnect_lock_device(state, locked).await
+}
+
+#[tauri::command]
+pub async fn shanuconnect_run_remote_command(
+    state: State<'_, AppState>,
+    command: String,
+) -> Result<String, String> {
+    kdeconnect_run_remote_command(state, command).await
+}
+
+#[tauri::command]
+pub async fn shanuconnect_send_sms(
+    state: State<'_, AppState>,
+    recipient: String,
+    body: String,
+) -> Result<(), String> {
+    kdeconnect_send_sms(state, recipient, body).await
+}
+
+#[tauri::command]
+pub async fn shanuconnect_mpris_control(
+    state: State<'_, AppState>,
+    action: String,
+    volume: Option<i32>,
+) -> Result<(), String> {
+    kdeconnect_mpris_control(state, action, volume).await
 }
 
 #[derive(Debug, Serialize, Deserialize)]

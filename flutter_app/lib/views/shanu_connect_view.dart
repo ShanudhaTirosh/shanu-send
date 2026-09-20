@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import '../services/kde_connect_service.dart';
+import '../services/shanu_connect_service.dart';
 
-class KdeConnectView extends StatefulWidget {
+class ShanuConnectView extends StatefulWidget {
   final String deviceName;
   final String? targetIp;
-  const KdeConnectView({super.key, this.deviceName = 'Desktop PC', this.targetIp});
+  const ShanuConnectView({super.key, this.deviceName = 'Desktop PC', this.targetIp});
 
   @override
-  State<KdeConnectView> createState() => _KdeConnectViewState();
+  State<ShanuConnectView> createState() => _ShanuConnectViewState();
 }
 
-class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProviderStateMixin {
+typedef KdeConnectView = ShanuConnectView;
+
+class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final KdeConnectService _kdeService = KdeConnectService();
+  final ShanuConnectService _shanuService = ShanuConnectService();
   bool _isPlaying = true;
   double _volume = 75.0;
   final TextEditingController _commandController = TextEditingController();
@@ -21,12 +23,12 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _kdeService.startDiscovery('Mobile Remote Controller', 'mobile-remote-id');
+    _shanuService.startDiscovery('Mobile Remote Controller', 'mobile-remote-id');
   }
 
   @override
   void dispose() {
-    _kdeService.stop();
+    _shanuService.stop();
     _tabController.dispose();
     _commandController.dispose();
     super.dispose();
@@ -76,13 +78,13 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                 Expanded(
                   child: GestureDetector(
                     onPanUpdate: (details) {
-                      _kdeService.sendMousepad(details.delta.dx, details.delta.dy, targetIp: widget.targetIp);
+                      _shanuService.sendMousepad(details.delta.dx, details.delta.dy, targetIp: widget.targetIp);
                     },
                     onTap: () {
-                      _kdeService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
+                      _shanuService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
                     },
                     onDoubleTap: () {
-                      _kdeService.sendMousepad(0, 0, click: 'doubleclick', targetIp: widget.targetIp);
+                      _shanuService.sendMousepad(0, 0, click: 'doubleclick', targetIp: widget.targetIp);
                     },
                     child: Container(
                       decoration: BoxDecoration(
@@ -111,7 +113,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          _kdeService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
+                          _shanuService.sendMousepad(0, 0, click: 'singleclick', targetIp: widget.targetIp);
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B)),
                         child: const Text('Left Click'),
@@ -121,7 +123,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          _kdeService.sendMousepad(0, 0, click: 'rightclick', targetIp: widget.targetIp);
+                          _shanuService.sendMousepad(0, 0, click: 'rightclick', targetIp: widget.targetIp);
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B)),
                         child: const Text('Right Click'),
@@ -160,7 +162,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                       iconSize: 40,
                       icon: const Icon(Icons.skip_previous_rounded, color: Colors.white),
                       onPressed: () {
-                        _kdeService.sendMprisCommand('previous', targetIp: widget.targetIp);
+                        _shanuService.sendMprisCommand('previous', targetIp: widget.targetIp);
                       },
                     ),
                     IconButton(
@@ -171,14 +173,14 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                       ),
                       onPressed: () {
                         setState(() => _isPlaying = !_isPlaying);
-                        _kdeService.sendMprisCommand(_isPlaying ? 'play' : 'pause', targetIp: widget.targetIp);
+                        _shanuService.sendMprisCommand(_isPlaying ? 'play' : 'pause', targetIp: widget.targetIp);
                       },
                     ),
                     IconButton(
                       iconSize: 40,
                       icon: const Icon(Icons.skip_next_rounded, color: Colors.white),
                       onPressed: () {
-                        _kdeService.sendMprisCommand('next', targetIp: widget.targetIp);
+                        _shanuService.sendMprisCommand('next', targetIp: widget.targetIp);
                       },
                     ),
                   ],
@@ -191,7 +193,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                   activeColor: const Color(0xFF38BDF8),
                   onChanged: (v) {
                     setState(() => _volume = v);
-                    _kdeService.sendMprisCommand('volume', volume: v, targetIp: widget.targetIp);
+                    _shanuService.sendMprisCommand('volume', volume: v, targetIp: widget.targetIp);
                   },
                 ),
               ],
@@ -223,7 +225,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                       icon: const Icon(Icons.send_rounded, color: Color(0xFF38BDF8)),
                       onPressed: () {
                         if (_commandController.text.isNotEmpty) {
-                          _kdeService.sendRunCommand(_commandController.text, widget.targetIp);
+                          _shanuService.sendRunCommand(_commandController.text, widget.targetIp);
                           _commandController.clear();
                         }
                       },
@@ -240,7 +242,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                         title: const Text('Lock Desktop Workstation', style: TextStyle(color: Colors.white)),
                         trailing: const Icon(Icons.lock_rounded, color: Color(0xFF38BDF8)),
                         onTap: () {
-                          _kdeService.sendRunCommand('lock', widget.targetIp);
+                          _shanuService.sendRunCommand('lock', widget.targetIp);
                         },
                       ),
                       const SizedBox(height: 8),
@@ -250,7 +252,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                         title: const Text('Send Ping Signal', style: TextStyle(color: Colors.white)),
                         trailing: const Icon(Icons.notifications_active_rounded, color: Color(0xFF38BDF8)),
                         onTap: () {
-                          _kdeService.sendRunCommand('ping', widget.targetIp);
+                          _shanuService.sendRunCommand('ping', widget.targetIp);
                         },
                       ),
                     ],
@@ -268,7 +270,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    _kdeService.sendPresenterSlide(next: false, targetIp: widget.targetIp);
+                    _shanuService.sendPresenterSlide(next: false, targetIp: widget.targetIp);
                   },
                   icon: const Icon(Icons.arrow_back_rounded),
                   label: const Text('Previous Slide'),
@@ -280,7 +282,7 @@ class _KdeConnectViewState extends State<KdeConnectView> with SingleTickerProvid
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () {
-                    _kdeService.sendPresenterSlide(next: true, targetIp: widget.targetIp);
+                    _shanuService.sendPresenterSlide(next: true, targetIp: widget.targetIp);
                   },
                   icon: const Icon(Icons.arrow_forward_rounded),
                   label: const Text('Next Slide'),

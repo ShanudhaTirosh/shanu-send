@@ -9,7 +9,7 @@ import '../services/webdrop_server.dart';
 import '../widgets/speed_badge.dart';
 import '../widgets/webdrop_modal.dart';
 
-import 'kde_connect_view.dart';
+import 'shanu_connect_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -86,7 +86,7 @@ class _HomeViewState extends State<HomeView> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => KdeConnectView(deviceName: deviceName),
+        builder: (_) => ShanuConnectView(deviceName: deviceName),
       ),
     );
   }

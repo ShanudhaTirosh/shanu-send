@@ -6,7 +6,7 @@ pub struct AppState {
     pub server: Arc<ServerState>,
     pub port: u16,
     pub history_path: PathBuf,
-    pub kde_engine: Arc<shanusend_core::kdeconnect::KdeConnectEngine>,
+    pub kde_engine: Arc<shanusend_core::shanuconnect::ShanuConnectEngine>,
 }
 
 /// Loads a persisted device identity (alias + cert) from the app data dir,

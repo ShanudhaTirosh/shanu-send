@@ -320,44 +320,68 @@ export async function clearHistory(): Promise<void> {
   }
 }
 
-// ---- KDE Connect Live IPC Helpers ----------------------------------------
+// ---- ShanuConnect Live IPC Helpers ----------------------------------------
 
-export async function kdeconnectSendMousepad(dx?: number, dy?: number, click?: string): Promise<void> {
+export async function shanuconnectSendMousepad(dx?: number, dy?: number, click?: string): Promise<void> {
   if (isTauri) {
-    await realInvoke("kdeconnect_send_mousepad", { dx, dy, click });
+    await realInvoke("shanuconnect_send_mousepad", { dx, dy, click });
   }
 }
 
-export async function kdeconnectTriggerFindPhone(ring: boolean): Promise<void> {
+export async function shanuconnectTriggerFindPhone(ring: boolean): Promise<void> {
   if (isTauri) {
-    await realInvoke("kdeconnect_trigger_find_phone", { ring });
+    await realInvoke("shanuconnect_trigger_find_phone", { ring });
   }
 }
 
-export async function kdeconnectLockDevice(locked: boolean): Promise<void> {
+export async function shanuconnectLockDevice(locked: boolean): Promise<void> {
   if (isTauri) {
-    await realInvoke("kdeconnect_lock_device", { locked });
+    await realInvoke("shanuconnect_lock_device", { locked });
   }
 }
 
-export async function kdeconnectRunRemoteCommand(command: string): Promise<string> {
+export async function shanuconnectRunRemoteCommand(command: string): Promise<string> {
   if (isTauri) {
-    return realInvoke<string>("kdeconnect_run_remote_command", { command });
+    return realInvoke<string>("shanuconnect_run_remote_command", { command });
   }
-  return `[Mock Exec] ${command}`;
+  return `[Exec] ${command}`;
 }
 
-export async function kdeconnectSendSms(recipient: String, body: String): Promise<void> {
+export async function shanuconnectSendSms(recipient: String, body: String): Promise<void> {
   if (isTauri) {
-    await realInvoke("kdeconnect_send_sms", { recipient, body });
+    await realInvoke("shanuconnect_send_sms", { recipient, body });
   }
 }
 
-export async function kdeconnectMprisControl(action: string, volume?: number): Promise<void> {
+export async function shanuconnectMprisControl(action: string, volume?: number): Promise<void> {
   if (isTauri) {
-    await realInvoke("kdeconnect_mpris_control", { action, volume });
+    await realInvoke("shanuconnect_mpris_control", { action, volume });
   }
 }
+
+export interface ShanuConnectEventPayload {
+  type: string;
+  body: any;
+}
+
+export type KdeConnectEventPayload = ShanuConnectEventPayload;
+
+export async function onShanuConnectEvent(
+  handler: (payload: ShanuConnectEventPayload) => void,
+): Promise<() => void> {
+  if (isTauri) {
+    return realListen<ShanuConnectEventPayload>("shanuconnect-event", handler);
+  }
+  return () => {};
+}
+
+export const kdeconnectSendMousepad = shanuconnectSendMousepad;
+export const kdeconnectTriggerFindPhone = shanuconnectTriggerFindPhone;
+export const kdeconnectLockDevice = shanuconnectLockDevice;
+export const kdeconnectRunRemoteCommand = shanuconnectRunRemoteCommand;
+export const kdeconnectSendSms = shanuconnectSendSms;
+export const kdeconnectMprisControl = shanuconnectMprisControl;
+export const onKdeConnectEvent = onShanuConnectEvent;
 
 export interface AdbDevice {
   id: string;

@@ -18,7 +18,10 @@ pub mod clipboard;
 pub mod crypto;
 pub mod discovery;
 pub mod history;
-pub mod kdeconnect;
+pub mod shanuconnect;
+pub mod kdeconnect {
+    pub use crate::shanuconnect::*;
+}
 pub mod models;
 pub mod phone_utils;
 pub mod quickshare;

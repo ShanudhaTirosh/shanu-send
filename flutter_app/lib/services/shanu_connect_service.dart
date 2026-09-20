@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
-class KdeConnectService {
+class ShanuConnectService {
   static const int udpPort = 1716;
   static const int tcpPort = 1716;
 
@@ -26,7 +26,7 @@ class KdeConnectService {
               final Map<String, dynamic> packet = jsonDecode(message);
               _packetController.add(packet);
             } catch (e) {
-              debugPrint('KDE Connect packet parse error: $e');
+              debugPrint('ShanuConnect packet parse error: $e');
             }
           }
         }
@@ -35,44 +35,44 @@ class KdeConnectService {
       // Broadcast identity beacon
       _sendBroadcastIdentity(deviceName, deviceId);
     } catch (e) {
-      debugPrint('KDE Connect UDP bind error: $e');
+      debugPrint('ShanuConnect UDP bind error: $e');
     }
   }
 
   void _sendBroadcastIdentity(String deviceName, String deviceId) {
     final identityPacket = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'type': 'kdeconnect.identity',
+      'type': 'shanuconnect.identity',
       'body': {
         'deviceId': deviceId,
         'deviceName': deviceName,
         'deviceType': 'phone',
         'protocolVersion': 7,
         'incomingCapabilities': [
-          'kdeconnect.battery',
-          'kdeconnect.clipboard',
-          'kdeconnect.mousepad',
-          'kdeconnect.mpris',
-          'kdeconnect.notifications',
-          'kdeconnect.ping',
-          'kdeconnect.presenter',
-          'kdeconnect.runcommand',
-          'kdeconnect.sms',
-          'kdeconnect.systemvolume',
-          'kdeconnect.lockdevice',
+          'shanuconnect.battery',
+          'shanuconnect.clipboard',
+          'shanuconnect.mousepad',
+          'shanuconnect.mpris',
+          'shanuconnect.notifications',
+          'shanuconnect.ping',
+          'shanuconnect.presenter',
+          'shanuconnect.runcommand',
+          'shanuconnect.sms',
+          'shanuconnect.systemvolume',
+          'shanuconnect.lockdevice',
         ],
         'outgoingCapabilities': [
-          'kdeconnect.battery',
-          'kdeconnect.clipboard',
-          'kdeconnect.mousepad',
-          'kdeconnect.mpris',
-          'kdeconnect.notifications',
-          'kdeconnect.ping',
-          'kdeconnect.presenter',
-          'kdeconnect.runcommand',
-          'kdeconnect.sms',
-          'kdeconnect.systemvolume',
-          'kdeconnect.lockdevice',
+          'shanuconnect.battery',
+          'shanuconnect.clipboard',
+          'shanuconnect.mousepad',
+          'shanuconnect.mpris',
+          'shanuconnect.notifications',
+          'shanuconnect.ping',
+          'shanuconnect.presenter',
+          'shanuconnect.runcommand',
+          'shanuconnect.sms',
+          'shanuconnect.systemvolume',
+          'shanuconnect.lockdevice',
         ],
         'tcpPort': tcpPort,
       }
@@ -88,7 +88,7 @@ class KdeConnectService {
       final ip = targetIp != null ? InternetAddress(targetIp) : InternetAddress('255.255.255.255');
       _udpSocket?.send(bytes, ip, udpPort);
     } catch (e) {
-      debugPrint('KDE Connect packet send error: $e');
+      debugPrint('ShanuConnect packet send error: $e');
     }
   }
 
@@ -102,7 +102,7 @@ class KdeConnectService {
     }
     final packet = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'type': 'kdeconnect.mousepad',
+      'type': 'shanuconnect.mousepad',
       'body': body,
     };
     sendPacket(packet, targetIp);
@@ -117,7 +117,7 @@ class KdeConnectService {
     }
     final packet = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'type': 'kdeconnect.mpris',
+      'type': 'shanuconnect.mpris',
       'body': body,
     };
     sendPacket(packet, targetIp);
@@ -126,7 +126,7 @@ class KdeConnectService {
   void sendRunCommand(String command, [String? targetIp]) {
     final packet = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'type': 'kdeconnect.runcommand.request',
+      'type': 'shanuconnect.runcommand',
       'body': {
         'key': command,
       }
@@ -137,7 +137,7 @@ class KdeConnectService {
   void sendPresenterSlide({required bool next, String? targetIp}) {
     final packet = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'type': 'kdeconnect.presenter',
+      'type': 'shanuconnect.presenter',
       'body': {
         if (next) 'next': true else 'prev': true,
       }
@@ -151,3 +151,4 @@ class KdeConnectService {
   }
 }
 
+typedef KdeConnectService = ShanuConnectService;
