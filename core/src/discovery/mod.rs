@@ -159,7 +159,9 @@ pub async fn scan_subnet(subnet_prefix: &str, tx: mpsc::Sender<DiscoveryEvent>) 
             let url = format!("http://{target_ip}:{DEFAULT_PORT}/api/localsend/v2/info");
             if let Ok(resp) = client.get(&url).send().await {
                 if let Ok(reg) = resp.json::<crate::models::RegisterDto>().await {
-                    if let Ok(from_addr) = format!("{target_ip}:{DEFAULT_PORT}").parse::<SocketAddr>() {
+                    if let Ok(from_addr) =
+                        format!("{target_ip}:{DEFAULT_PORT}").parse::<SocketAddr>()
+                    {
                         let dto = MulticastDto {
                             alias: reg.alias,
                             version: reg.version,

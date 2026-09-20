@@ -336,7 +336,8 @@ struct UploadQuery {
 
 #[allow(dead_code)]
 async fn webdrop_page_handler() -> Html<&'static str> {
-    Html(r##"<!DOCTYPE html>
+    Html(
+        r##"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -410,7 +411,8 @@ async fn webdrop_page_handler() -> Html<&'static str> {
   }
 </script>
 </body>
-</html>"##)
+</html>"##,
+    )
 }
 
 #[allow(dead_code, unused_variables)]

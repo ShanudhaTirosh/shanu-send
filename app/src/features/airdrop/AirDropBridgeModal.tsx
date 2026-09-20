@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Smartphone, Globe, Copy, Check, QrCode, ShieldCheck, Apple } from "lucide-react";
+import { X, Smartphone, Copy, Check, QrCode, Apple } from "lucide-react";
 import { getSelfInfo } from "../../lib/tauri";
 
 interface AirDropBridgeModalProps {

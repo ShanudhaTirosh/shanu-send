@@ -118,7 +118,8 @@ pub async fn send_files(
             })
             .await;
 
-        match client::upload_file_stream(&target, &response.session_id, &file.id, token, handle).await
+        match client::upload_file_stream(&target, &response.session_id, &file.id, token, handle)
+            .await
         {
             Ok(()) => {
                 let elapsed_secs = start_time.elapsed().as_secs_f64();
