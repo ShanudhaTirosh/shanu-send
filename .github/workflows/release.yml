@@ -101,8 +101,8 @@ jobs:
           # show an "unknown publisher" warning on first launch.
         with:
           projectPath: app
-          tagName: v__VERSION__
-          releaseName: 'ShanuSend v__VERSION__'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'ShanuSend ${{ github.ref_name }}'
           releaseBody: |
             See the assets below to download and install for your platform.
 
@@ -112,6 +112,6 @@ jobs:
             | macOS (Apple Silicon) | `aarch64` `.dmg` |
             | macOS (Intel) | `x64` `.dmg` |
             | Linux | `.deb`, `.AppImage`, or `.rpm` |
-          releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || true }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
