@@ -24,6 +24,9 @@ pub struct SelfInfo {
 }
 
 pub fn get_system_local_ip() -> String {
+    if let Ok(ip) = local_ip_address::local_ip() {
+        return ip.to_string();
+    }
     if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
         if socket.connect("8.8.8.8:80").is_ok() {
             if let Ok(addr) = socket.local_addr() {
@@ -644,6 +647,9 @@ pub async fn scrcpy_download_dependencies(app: tauri::AppHandle) -> Result<Strin
         let outpath = match file.enclosed_name() {
             Some(path) => {
                 let file_name = path.file_name().unwrap_or_default();
+                if file_name.to_str().unwrap_or("").is_empty() {
+                    continue;
+                }
                 bin_dir.join(file_name)
             }
             None => continue,

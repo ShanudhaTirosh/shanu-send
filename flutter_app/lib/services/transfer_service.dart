@@ -35,7 +35,7 @@ class TransferService {
             'alias': 'ShanuSend Flutter',
             'version': '2.1',
             'deviceModel': Platform.operatingSystem,
-            'deviceType': 'desktop',
+            'deviceType': 'mobile',
             'fingerprint': 'shanu_flutter_fp',
             'port': 53317,
             'protocol': 'http',
