@@ -42,6 +42,9 @@ Desktop.ini
 # Reference Sources
 localsend-main/
 opendrop-master/
+kdeconnect-kde-master/
+kdeconnect-android-master/
+scrcpy-gui-main/
 
-#logs
+# logs
 log/
