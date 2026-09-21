@@ -100,6 +100,14 @@ struct PendingSession {
     accepted_file_ids: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WebDropSharedFile {
+    pub id: String,
+    pub name: String,
+    pub path: PathBuf,
+    pub size: u64,
+}
+
 pub struct ServerState {
     pub device: DeviceInfo,
     pub port: u16,
@@ -111,6 +119,7 @@ pub struct ServerState {
     pub save_dir: Mutex<PathBuf>,
     /// Fingerprints the user has explicitly trusted -> auto-accept incoming requests.
     pub trusted_fingerprints: Mutex<Vec<String>>,
+    pub shared_files: Mutex<Vec<WebDropSharedFile>>,
     sessions: Mutex<HashMap<String, PendingSession>>,
     accept_waiters: Mutex<HashMap<String, oneshot::Sender<Option<Vec<String>>>>>,
     events: mpsc::Sender<ServerEvent>,
@@ -132,11 +141,27 @@ impl ServerState {
             pin: Mutex::new(pin),
             save_dir: Mutex::new(save_dir),
             trusted_fingerprints: Mutex::new(Vec::new()),
+            shared_files: Mutex::new(Vec::new()),
             sessions: Mutex::new(HashMap::new()),
             accept_waiters: Mutex::new(HashMap::new()),
             events: tx,
         });
         (state, rx)
+    }
+
+    pub async fn add_shared_file(&self, name: String, path: PathBuf, size: u64) {
+        let id = Uuid::new_v4().to_string();
+        let mut files = self.shared_files.lock().await;
+        files.retain(|f| f.name != name);
+        files.push(WebDropSharedFile { id, name, path, size });
+    }
+
+    pub async fn get_shared_files(&self) -> Vec<WebDropSharedFile> {
+        self.shared_files.lock().await.clone()
+    }
+
+    pub async fn clear_shared_files(&self) {
+        self.shared_files.lock().await.clear();
     }
 
     /// Called by the UI layer once the user accepts/rejects an incoming
@@ -222,6 +247,8 @@ pub fn build_router(state: Arc<ServerState>) -> Router {
         .route("/api/localsend/v2/upload", post(upload_handler))
         .route("/api/localsend/v2/cancel", post(cancel_handler))
         .route("/webdrop", get(webdrop_page_handler))
+        .route("/api/webdrop/files", get(webdrop_list_files_handler))
+        .route("/api/webdrop/download/:filename", get(webdrop_download_file_handler))
         .route("/api/webdrop/upload", post(webdrop_upload_handler))
         .route("/api/webdrop/text", post(webdrop_text_handler))
         .with_state(state)
@@ -339,26 +366,102 @@ struct UploadQuery {
     token: String,
 }
 
+async fn webdrop_list_files_handler(
+    State(state): State<Arc<ServerState>>,
+) -> Json<Vec<WebDropSharedFile>> {
+    Json(state.get_shared_files().await)
+}
+
+async fn webdrop_download_file_handler(
+    State(state): State<Arc<ServerState>>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Result<axum::response::Response, StatusCode> {
+    let shared_files = state.get_shared_files().await;
+    let target_file = shared_files.iter().find(|f| f.name == filename);
+
+    let (file_path, file_size) = if let Some(shared) = target_file {
+        (shared.path.clone(), shared.size)
+    } else {
+        let save_dir = state.save_dir.lock().await.clone();
+        let fallback = save_dir.join(&filename);
+        if let Ok(meta) = tokio::fs::metadata(&fallback).await {
+            (fallback, meta.len())
+        } else {
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+
+    let file = tokio::fs::File::open(&file_path)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    let stream = tokio_util::io::ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    let content_disposition = format!("attachment; filename=\"{filename}\"");
+
+    let response = axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "application/octet-stream")
+        .header(axum::http::header::CONTENT_LENGTH, file_size.to_string())
+        .header(axum::http::header::CONTENT_DISPOSITION, content_disposition)
+        .body(body)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(response)
+}
+
 async fn webdrop_page_handler() -> Html<&'static str> {
     Html(
         r##"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShanuSend WebDrop</title>
+<title>ShanuSend AirDrop & WebDrop Portal</title>
 <style>
-  body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
-  .card { background: #161e2e; border: 1px solid #283548; border-radius: 20px; padding: 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
-  h1 { font-size: 24px; margin: 0 0 8px 0; display: flex; items-center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  p { color: #94a3b8; font-size: 14px; margin: 0 0 24px 0; }
-  .dropzone { border: 2px dashed #334155; border-radius: 14px; padding: 40px 20px; cursor: pointer; transition: all 0.2s; background: #0f172a; display: flex; flex-direction: column; align-items: center; }
-  .dropzone:hover { border-color: #6366f1; background: #1e1b4b; }
-  .btn { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 20px; font-size: 16px; transition: opacity 0.2s; }
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #161e2e;
+    --border-color: #283548;
+    --accent: #38bdf8;
+    --indigo: #6366f1;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-dark); color: var(--text-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; }
+  .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px 24px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
+  h1 { font-size: 22px; margin: 0 0 6px 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  p { color: var(--text-muted); font-size: 13px; margin: 0 0 20px 0; }
+  
+  .nav-tabs { display: flex; background: #0f172a; padding: 4px; border-radius: 14px; margin-bottom: 20px; border: 1px solid var(--border-color); }
+  .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+  .tab-btn.active { background: #1e293b; color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .dropzone { border: 2px dashed #334155; border-radius: 16px; padding: 36px 20px; cursor: pointer; transition: all 0.2s; background: #0f172a; display: flex; flex-direction: column; align-items: center; }
+  .dropzone:hover { border-color: var(--indigo); background: #1e1b4b; }
+  
+  .btn { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 16px; font-size: 15px; transition: opacity 0.2s; }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .progress { width: 100%; background: #1e293b; border-radius: 999px; height: 10px; margin-top: 20px; overflow: hidden; display: none; }
+  
+  .progress { width: 100%; background: #1e293b; border-radius: 999px; height: 8px; margin-top: 16px; overflow: hidden; display: none; }
   .bar { height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); width: 0%; transition: width 0.1s; }
-  #status { margin-top: 14px; font-size: 14px; font-weight: 500; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .icon-svg { width: 44px; height: 44px; stroke: #38bdf8; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #status { margin-top: 12px; font-size: 13px; font-weight: 500; color: var(--accent); }
+
+  .file-list { display: flex; flex-direction: column; gap: 10px; text-align: left; max-height: 240px; overflow-y: auto; }
+  .file-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .file-info { display: flex; flex-direction: column; overflow: hidden; }
+  .file-name { font-size: 14px; font-weight: 500; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .file-size { font-size: 12px; color: var(--text-muted); }
+  .dl-btn { background: #1e293b; color: var(--accent); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; }
+  .dl-btn:hover { background: #334155; color: white; }
+
+  textarea { width: 100%; height: 120px; background: #0f172a; border: 1px solid var(--border-color); border-radius: 12px; color: white; padding: 12px; font-family: inherit; font-size: 14px; resize: none; margin-bottom: 12px; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .icon-svg { width: 44px; height: 44px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .icon-small { width: 20px; height: 20px; vertical-align: middle; }
 </style>
 </head>
@@ -368,18 +471,56 @@ async fn webdrop_page_handler() -> Html<&'static str> {
     <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
     ShanuSend WebDrop
   </h1>
-  <p>AirDrop & Nearby Share Portal. Send files directly to this device from Safari / Chrome!</p>
-  <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()">
-    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-    <div style="margin-top: 12px; font-weight: 500; color: #cbd5e1;">Tap or Drag files here to send</div>
+  <p>AirDrop & Nearby Share Portal. Transfer files to/from Safari, Chrome, iOS & Android!</p>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('send')">Send File</button>
+    <button class="tab-btn" onclick="switchTab('receive')">Receive Shared</button>
+    <button class="tab-btn" onclick="switchTab('text')">Text Note</button>
   </div>
-  <input type="file" id="fi" multiple style="display:none" onchange="updateFiles()">
-  <button class="btn" id="sbtn" onclick="upload()" disabled>Send Files</button>
-  <div class="progress" id="prg"><div class="bar" id="bar"></div></div>
-  <div id="status"></div>
+
+  <div id="tab-send" class="tab-content active">
+    <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()">
+      <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <div style="margin-top: 12px; font-weight: 500; color: #cbd5e1;">Tap or Drag files here to send</div>
+    </div>
+    <input type="file" id="fi" multiple style="display:none" onchange="updateFiles()">
+    <button class="btn" id="sbtn" onclick="upload()" disabled>Send Files</button>
+    <div class="progress" id="prg"><div class="bar" id="bar"></div></div>
+    <div id="status"></div>
+  </div>
+
+  <div id="tab-receive" class="tab-content">
+    <div id="file-container" class="file-list">
+      <div style="color:var(--text-muted); font-size:13px; padding: 20px;">No files shared yet by host device.</div>
+    </div>
+  </div>
+
+  <div id="tab-text" class="tab-content">
+    <textarea id="noteText" placeholder="Paste or type text snippet to send to host..."></textarea>
+    <button class="btn" onclick="sendText()">Send Text Snippet</button>
+    <div id="textStatus" style="margin-top:10px; font-size:13px; color:var(--accent)"></div>
+  </div>
 </div>
+
 <script>
   let files = [];
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    if (tab === 'send') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      document.getElementById('tab-send').classList.add('active');
+    } else if (tab === 'receive') {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      document.getElementById('tab-receive').classList.add('active');
+      fetchSharedFiles();
+    } else {
+      document.querySelectorAll('.tab-btn')[2].classList.add('active');
+      document.getElementById('tab-text').classList.add('active');
+    }
+  }
+
   function updateFiles() {
     files = Array.from(document.getElementById('fi').files);
     if(files.length > 0) {
@@ -387,6 +528,7 @@ async fn webdrop_page_handler() -> Html<&'static str> {
       document.getElementById('sbtn').disabled = false;
     }
   }
+
   async function upload() {
     if(!files.length) return;
     document.getElementById('sbtn').disabled = true;
@@ -394,6 +536,7 @@ async fn webdrop_page_handler() -> Html<&'static str> {
     const status = document.getElementById('status');
     const formData = new FormData();
     for(const f of files) formData.append('files', f);
+    
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/webdrop/upload');
     xhr.upload.onprogress = (e) => {
@@ -407,11 +550,56 @@ async fn webdrop_page_handler() -> Html<&'static str> {
       if(xhr.status === 200) {
         status.innerHTML = `<span style="color:#34d399">Files transferred successfully!</span>`;
         document.getElementById('bar').style.width = '100%';
+        files = [];
       } else {
         status.innerHTML = `<span style="color:#f87171">Upload failed</span>`;
       }
     };
     xhr.send(formData);
+  }
+
+  async function fetchSharedFiles() {
+    const container = document.getElementById('file-container');
+    try {
+      const res = await fetch('/api/webdrop/files');
+      const list = await res.json();
+      if(!list || !list.length) {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:13px; padding: 20px;">No files shared yet by host device.</div>';
+        return;
+      }
+      container.innerHTML = list.map(f => `
+        <div class="file-item">
+          <div class="file-info">
+            <div class="file-name">${f.name}</div>
+            <div class="file-size">${(f.size / 1048576).toFixed(1)} MB</div>
+          </div>
+          <a class="dl-btn" href="/api/webdrop/download/${encodeURIComponent(f.name)}" download>Download</a>
+        </div>
+      `).join('');
+    } catch(e) {
+      container.innerHTML = '<div style="color:#f87171; font-size:13px;">Error loading file list.</div>';
+    }
+  }
+
+  async function sendText() {
+    const text = document.getElementById('noteText').value;
+    if(!text.trim()) return;
+    const status = document.getElementById('textStatus');
+    try {
+      const res = await fetch('/api/webdrop/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if(res.ok) {
+        status.innerHTML = '<span style="color:#34d399">Text note sent to device!</span>';
+        document.getElementById('noteText').value = '';
+      } else {
+        status.innerHTML = '<span style="color:#f87171">Failed to send text.</span>';
+      }
+    } catch(e) {
+      status.innerHTML = '<span style="color:#f87171">Error sending text.</span>';
+    }
   }
 </script>
 </body>

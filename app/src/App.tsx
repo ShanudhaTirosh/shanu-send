@@ -11,6 +11,7 @@ import { IncomingTransferPanel } from "./features/transfer/IncomingTransferPanel
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
 import { AirDropBridgeModal } from "./features/airdrop/AirDropBridgeModal";
+import { WebDropView } from "./features/airdrop/WebDropView";
 import { PhoneControlPanel } from "./features/phone/PhoneControlPanel";
 import { ScreenMirrorModal } from "./features/mirror/ScreenMirrorModal";
 import { QuickShareModal } from "./features/quickshare/QuickShareModal";
@@ -20,6 +21,10 @@ import { sendFiles, type LocalFileInput } from "./lib/tauri";
 type ActiveTab = "transfer" | "mirror" | "shanuconnect";
 
 export default function App() {
+  if (typeof window !== "undefined" && (window.location.pathname.startsWith("/web") || window.location.pathname.startsWith("/webdrop"))) {
+    return <WebDropView />;
+  }
+
   const { devices, scanning, rescan } = useDevices();
   const [selected, setSelected] = useState<Device | null>(null);
   const [files, setFiles] = useState<LocalFileInput[]>([]);

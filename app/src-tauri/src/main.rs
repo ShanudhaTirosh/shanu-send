@@ -277,6 +277,9 @@ fn main() {
             commands::scrcpy_adb_send_keyevent,
             commands::scrcpy_adb_shell,
             commands::quickshare_generate_ukey2_pin,
+            commands::webdrop_share_files,
+            commands::webdrop_get_shared_files,
+            commands::webdrop_clear_shared_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ShanuSend");

@@ -567,5 +567,26 @@ export async function quickshareGenerateUkey2Pin(): Promise<string> {
   return "8492";
 }
 
+export interface WebDropSharedFile {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+}
+
+export async function webdropShareFiles(paths: string[]): Promise<number> {
+  if (isTauri) return realInvoke<number>("webdrop_share_files", { paths });
+  return paths.length;
+}
+
+export async function webdropGetSharedFiles(): Promise<WebDropSharedFile[]> {
+  if (isTauri) return realInvoke<WebDropSharedFile[]>("webdrop_get_shared_files");
+  return [];
+}
+
+export async function webdropClearSharedFiles(): Promise<void> {
+  if (isTauri) return realInvoke<void>("webdrop_clear_shared_files");
+}
+
 export { isTauri };
 

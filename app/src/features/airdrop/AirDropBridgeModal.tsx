@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Smartphone, Copy, Check, QrCode, Apple } from "lucide-react";
-import { getSelfInfo } from "../../lib/tauri";
+import { X, Smartphone, Copy, Check, QrCode, Apple, FolderPlus, Trash2 } from "lucide-react";
+import { getSelfInfo, pickFilesToTransfer, webdropShareFiles, webdropGetSharedFiles, webdropClearSharedFiles, WebDropSharedFile } from "../../lib/tauri";
 
 interface AirDropBridgeModalProps {
   open: boolean;
@@ -11,19 +11,49 @@ interface AirDropBridgeModalProps {
 export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
   const [webUrl, setWebUrl] = useState<string>("http://127.0.0.1:53317/web");
   const [copied, setCopied] = useState(false);
+  const [sharedFiles, setSharedFiles] = useState<WebDropSharedFile[]>([]);
+  const [sharingStatus, setSharingStatus] = useState<string>("");
 
   useEffect(() => {
-    getSelfInfo().then((info) => {
-      const ip = info.local_ip && info.local_ip !== "127.0.0.1"
-        ? info.local_ip
-        : (window.location.hostname && window.location.hostname !== "localhost" && window.location.hostname !== "tauri.localhost"
-            ? window.location.hostname
-            : "127.0.0.1");
-      setWebUrl(`http://${ip}:${info.port}/web`);
-    }).catch(() => {
-      setWebUrl(`http://127.0.0.1:53317/web`);
-    });
+    if (open) {
+      getSelfInfo().then((info) => {
+        const ip = info.local_ip && info.local_ip !== "127.0.0.1"
+          ? info.local_ip
+          : (window.location.hostname && window.location.hostname !== "localhost" && window.location.hostname !== "tauri.localhost"
+              ? window.location.hostname
+              : "127.0.0.1");
+        setWebUrl(`http://${ip}:${info.port}/web`);
+      }).catch(() => {
+        setWebUrl(`http://127.0.0.1:53317/web`);
+      });
+
+      refreshSharedFiles();
+    }
   }, [open]);
+
+  const refreshSharedFiles = () => {
+    webdropGetSharedFiles().then(setSharedFiles).catch(() => {});
+  };
+
+  const handleShareFiles = async () => {
+    try {
+      const files = await pickFilesToTransfer();
+      if (files.length > 0) {
+        const paths = files.map((f) => f.path);
+        const count = await webdropShareFiles(paths);
+        setSharingStatus(`Shared ${count} file(s) to Web Portal!`);
+        refreshSharedFiles();
+        setTimeout(() => setSharingStatus(""), 3000);
+      }
+    } catch (err: any) {
+      setSharingStatus(`Share error: ${err?.message || err}`);
+    }
+  };
+
+  const handleClearShared = async () => {
+    await webdropClearSharedFiles();
+    refreshSharedFiles();
+  };
 
   const copyLink = () => {
     navigator.clipboard.writeText(webUrl);
@@ -69,35 +99,68 @@ export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
                   alt="Scan to open Web Portal"
                   className="h-full w-full object-contain"
                   onError={(e) => {
-                    // Fallback to SVG if offline
                     (e.target as HTMLElement).style.display = "none";
                   }}
                 />
               </div>
               <p className="mt-3 text-xs font-mono text-cyan-400 break-all font-semibold">{webUrl}</p>
-              <button
-                onClick={copyLink}
-                className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
-              >
-                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                {copied ? "Link Copied!" : "Copy Web Portal Link"}
-              </button>
+              <div className="mt-2.5 flex items-center justify-center gap-2">
+                <button
+                  onClick={copyLink}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+                >
+                  {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                  {copied ? "Copied!" : "Copy Link"}
+                </button>
+                <button
+                  onClick={handleShareFiles}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-600/30 px-3 py-1.5 text-xs font-medium text-indigo-200 transition hover:bg-indigo-600/50"
+                >
+                  <FolderPlus size={14} />
+                  Share Desktop Files
+                </button>
+              </div>
+              {sharingStatus && (
+                <p className="mt-2 text-xs text-emerald-400 font-medium">{sharingStatus}</p>
+              )}
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-300">
+            {sharedFiles.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs">
+                <div className="flex items-center justify-between text-slate-300 font-medium mb-2">
+                  <span>Files Published to Web ({sharedFiles.length}):</span>
+                  <button
+                    onClick={handleClearShared}
+                    className="inline-flex items-center gap-1 text-rose-400 hover:text-rose-300"
+                  >
+                    <Trash2 size={12} /> Clear
+                  </button>
+                </div>
+                <div className="max-h-24 overflow-y-auto space-y-1">
+                  {sharedFiles.map((f) => (
+                    <div key={f.id} className="flex justify-between text-slate-400 font-mono text-[11px]">
+                      <span className="truncate max-w-[200px]">{f.name}</span>
+                      <span>{(f.size / (1024 * 1024)).toFixed(1)} MB</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 text-xs text-slate-300">
               <div className="flex items-start gap-2.5 rounded-lg border border-white/5 bg-white/[0.02] p-2.5">
                 <Apple size={16} className="mt-0.5 shrink-0 text-cyan-400" />
                 <div>
-                  <span className="font-semibold text-slate-100">Apple Device Users (iPhone / iPad / Mac):</span>
-                  <p className="text-slate-400">Scan QR Code or open Safari to send files straight into ShanuSend without installing any app.</p>
+                  <span className="font-semibold text-slate-100">Apple Users (iPhone / iPad / Mac):</span>
+                  <p className="text-slate-400">Scan QR Code or open Safari to send/download files directly without installing any app.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5 rounded-lg border border-white/5 bg-white/[0.02] p-2.5">
                 <Smartphone size={16} className="mt-0.5 shrink-0 text-indigo-400" />
                 <div>
-                  <span className="font-semibold text-slate-100">Android & Nearby Share Users:</span>
-                  <p className="text-slate-400">Open link in Chrome or use LocalSend Android app to connect automatically over LAN.</p>
+                  <span className="font-semibold text-slate-100">Android & Nearby Share:</span>
+                  <p className="text-slate-400">Open link in Chrome to upload/download files or text notes instantly.</p>
                 </div>
               </div>
             </div>
@@ -107,3 +170,4 @@ export function AirDropBridgeModal({ open, onClose }: AirDropBridgeModalProps) {
     </AnimatePresence>
   );
 }
+

@@ -823,4 +823,37 @@ pub async fn quickshare_generate_ukey2_pin(state: State<'_, AppState>) -> Result
     Ok(pin)
 }
 
+#[tauri::command]
+pub async fn webdrop_share_files(
+    state: State<'_, AppState>,
+    paths: Vec<String>,
+) -> Result<usize, String> {
+    let mut added = 0;
+    for path_str in paths {
+        let path = std::path::PathBuf::from(&path_str);
+        if let Ok(meta) = std::fs::metadata(&path) {
+            let name = path
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "shared_file.bin".to_string());
+            state.server.add_shared_file(name, path, meta.len()).await;
+            added += 1;
+        }
+    }
+    Ok(added)
+}
+
+#[tauri::command]
+pub async fn webdrop_get_shared_files(
+    state: State<'_, AppState>,
+) -> Result<Vec<shanusend_core::server::WebDropSharedFile>, String> {
+    Ok(state.server.get_shared_files().await)
+}
+
+#[tauri::command]
+pub async fn webdrop_clear_shared_files(state: State<'_, AppState>) -> Result<(), String> {
+    state.server.clear_shared_files().await;
+    Ok(())
+}
+
 
