@@ -1,57 +1,46 @@
-# ShanuSend v2.5.0 Pro Suite 🚀
+# ShanuSend v2.5.3 Release Notes 🚀
 
-Universal High-Speed File Sharing, 2-Way AirDrop & Quick Share Bridge, Scrcpy Pro Screen Mirroring, and Full KDE Connect Plugin Suite.
-
----
-
-### ✨ What's New in v2.5.0
-
-#### 📱 1. Scrcpy Pro Suite (Screen Mirroring & Control)
-- **High-Performance Audio & Video Forwarding**:
-  - Video Codecs: H.264, H.265 (HEVC), AV1.
-  - Audio Codecs: Opus, AAC, FLAC, RAW, Off.
-  - Custom Bitrate (1-100 Mbps), Resolution scaling (1080p, 2K, 4K), and FPS caps (30, 60, 120 FPS).
-- **Pro Camera / Webcam Mode**: Turn your mobile device into a high-definition desktop webcam with front & back facing selection.
-- **Wireless ADB Pairing**: Scan local network, pair over custom IP & port with 6-digit PIN verification.
-- **Hardware Navigation Dock**: Quick action buttons for `Back`, `Home`, `Recents`, `Screenshot`, and `Record MP4`.
-- **Drag & Drop APK Pusher**: Drag `.apk` files directly onto screen mirror to auto-install on connected Android device.
-
-#### 🍏 2. AirDrop & WebDrop 2-Way Protocol
-- **Native Apple AirDrop Interoperability**:
-  - Broadcasts native Apple mDNS discovery service on UDP 5353.
-  - Handles `/Ask` consent handshake and `/Upload` binary file streams.
-  - Outbound AirDrop file streaming engine to send files directly to iPhones, iPads, and Mac computers.
-- **WebDrop Browser Portal**: Instant zero-install browser file transfer portal for any device on Wi-Fi.
-
-#### ⚡ 3. Google Quick Share / Nearby Share Protocol
-- **Native Android Quick Share Integration**:
-  - mDNS advertisement (`_FC92._tcp.local.`) & BLE GATT service (`0xFE2C`).
-  - UKEY2 security handshake and 4-digit verification PIN matching Android devices.
-
-#### 📱 4. KDE Connect Full 20+ Plugin Ecosystem
-- **Battery Sync**: Real-time battery %, charging status, low battery warning.
-- **Clipboard Sync**: Instant 2-way automatic text & image clipboard history sync.
-- **Connectivity Report**: Wi-Fi SSID, 2G/3G/4G/5G cellular signal strength.
-- **Contacts Directory**: Phone contact list sync, avatar resolution, search index.
-- **Digitizer / Graphics Tablet**: Pen pressure sensitivity & stylus drawing mode.
-- **Find My Phone**: Ring phone/desktop at max volume with custom siren audio.
-- **Remote Touchpad & Mouse**: Touchpad navigation, multi-touch gestures, mouse clicks, special keys.
-- **Media Controller (MPRIS)**: Remote track title, artist, album art, play/pause/skip, seek scrubber, per-player volume.
-- **Notification Mirroring**: Mirror incoming notifications with inline quick reply and dismiss actions.
-- **Auto-Pause Music**: Mute/Pause active audio playback during incoming calls.
-- **Presenter Remote**: Slide forward/backward, virtual laser pointer canvas, presentation timer.
-- **Remote Shell Commands**: Configure & execute remote terminal commands (Lock, Sleep, Shutdown, Apps).
-- **Screensaver Inhibit**: Keep computer awake during file transfers.
-- **SMS & Telephony**: SMS thread viewer, send SMS, incoming call overlay.
-- **System Volume Control**: Master & application stream volume sliders.
-
-#### 🚀 5. Turbo Speed Transfer Engine
-- **TCP Low Latency**: Enabled `TCP_NODELAY` and 256KB chunk stream buffering for maximum Wi-Fi throughput between ShanuSend clients.
+Universal High-Speed File Sharing, 2-Way AirDrop & Quick Share Bridge, ScrcpyGUI v4 Screen Mirroring Suite, ShanuConnect P2P Protocol Engine, and Cross-Platform Flutter Mobile App.
 
 ---
 
-### 🌐 Cross-Platform Downloads
-- **Windows**: `.msi` and `.exe` installers
-- **macOS**: `.dmg` (Apple Silicon & Intel)
-- **Linux**: `.deb`, `.AppImage`, `.rpm`
-- **Android**: `.apk`
+### ✨ Highlights of v2.5.3
+
+#### 📱 1. Complete ScrcpyGUI v4 Feature Parity
+- **3 Capture Modes**: Screen Mirror, Camera Webcam Mode, and Desktop Virtual Display (`--new-display`).
+- **Camera Enhancements**: Camera Torch flashlight toggle, Camera Zoom slider (1.0x - 10.0x), and lens selection.
+- **Pro Display & Performance Controls**: Flex Display dynamic sizing, VSync anti-tearing toggle, hex background color setting, bitrate control (1-100 Mbps), FPS caps (30/60/120), resolution options, Opus audio fallback chain, and ignore video encoder constraints option.
+- **Pro Input Modes**: OTG Keyboard/Mouse, HID Keyboard/Mouse simulation, and Pure HID (No Mirror) mode.
+- **Win32 Window Navigation**: Drag borderless mirror windows with `Ctrl+Alt+Shift+W` and recenter with `Ctrl+Alt+Shift+C`.
+- **Wireless ADB Pairing**: mDNS auto-discovery & native 6-digit PIN pairing modal for Android 11+.
+
+#### 🌐 2. Universal Multi-Protocol Transfer Engine
+- **Apple AirDrop (iOS / macOS Interoperability)**:
+  - Answers `_airdrop._tcp.local.` mDNS queries on UDP port 5353.
+  - Axum endpoints for `/Ask`, `/Upload`, `/Discover` on port 8770.
+  - Outbound `send_file_airdrop` command to send files directly to Apple devices.
+- **Google Quick Share / Nearby Share (Android / Windows / Linux Interoperability)**:
+  - Answers `_FC92._tcp.local.` mDNS queries on UDP port 5353 and BLE service `0xFE2C`.
+  - Axum endpoints `/api/quickshare/v1/prepare-upload` and `/api/quickshare/v1/upload` on port 5238.
+  - UKEY2 4-digit PIN verification generator & outbound `send_file_quickshare` command.
+- **LocalSend v2.1 Protocol**:
+  - Multicast mDNS discovery on `224.0.0.167:53317` and `/api/localsend/v2/*` endpoints.
+- **ShanuConnect (Native App-to-App P2P)**:
+  - Port 1716 TCP & UDP listeners compatible with ShanuConnect and KDE Connect protocol v7.
+  - Remote trackpad/mousepad, clipboard sync, battery monitoring, phone ringer, remote command execution, SMS, MPRIS media control, and call notifications.
+- **WebPortal / WebDrop**:
+  - Served live at `http://<IP>:53317/web` for zero-install browser file transfer.
+
+#### 📱 3. Flutter Mobile Client (`flutter_app/`)
+- Subnet scanner (`DiscoveryService`), zero-copy stream transfer service (`TransferService`), ShanuConnect remote touchpad & media controller (`ShanuConnectService`), Quick Share sender (`QuickShareService`), and mobile WebDrop server (`WebDropServer`).
+- Dark glassmorphism UI system matching the desktop application.
+- English (`en`) UI default.
+
+---
+
+### 📦 Build & Installer Artifacts
+
+- **Windows Installer (NSIS)**: `ShanuSend_2.5.3_x64-setup.exe`
+- **Windows MSI Package**: `ShanuSend_2.5.3_x64_en-US.msi`
+- **Standalone Desktop Executable**: `shanusend.exe`
+- **Android App**: `app-release.apk`

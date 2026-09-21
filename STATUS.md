@@ -1,40 +1,60 @@
-# ShanuSend — System Status & Strict Platform-Aware Matrix
+# ShanuSend — System Status & Platform Matrix
 
-This document details the authoritative feature distribution between **Desktop Host (`app/` + `core/`)** and **Mobile Client (`flutter_app/`)**.
+Authoritative system feature matrix and verification status across **Desktop Host (`app/` + `core/`)** and **Mobile Client (`flutter_app/`)**.
 
 ---
 
 ## 🖥️ Desktop App (`app/`) — Host & Management Engine
-The desktop app runs as the central workstation hub for file transfers, display rendering, and device management:
 
-- **Primary Desktop Interface Tabs**:
-  1. `File Transfer`: Drag-and-drop file sender, incoming file transfer prompt, LocalSend progress bars.
-  2. `Screen Mirroring (Scrcpy Host)`: Scrcpy Pro controller to launch, view, and control phone screens over USB/Wireless ADB.
-  3. `KDE Device Hub`: Central management for paired phone status, battery reporting, remote workstation locking, and phone ringing.
-- **Hosted Desktop Portals**:
-  - `WebDrop Web Server Portal`: Axum web server hosting `/webdrop` and `/api/webdrop/upload` for mobile browser drag-and-drop uploads.
-- **Excluded from Desktop UI**:
-  - `Remote Touchpad Surface` has been removed from Desktop (touchpad sending is an input mechanism for smartphones).
+The desktop app operates as the central workstation hub for file transfers, display rendering, and multi-protocol discovery:
+
+- **Primary Interface Panels**:
+  1. **ScrcpyGUI v4 Screen Mirroring**:
+     - 3 Capture Modes: Screen Mirror, Camera Webcam Mode, Desktop Virtual Display (`--new-display`).
+     - Camera Torch toggle, Camera Zoom slider, Flex Display mode, VSync toggle, background color customization.
+     - Pro Input: OTG Keyboard/Mouse, HID Keyboard/Mouse simulation, Pure HID (No Mirror) mode.
+     - Win32 Borderless Drag (`Ctrl+Alt+Shift+W`) and Recenter (`Ctrl+Alt+Shift+C`).
+     - Wireless mDNS auto-discovery & native 6-digit PIN pairing modal for Android 11+.
+  2. **Universal File Transfer**:
+     - LocalSend v2.1 multicast listener (`224.0.0.167:53317`).
+     - Apple AirDrop mDNS & HTTPS endpoints (`:8770`).
+     - Google Quick Share mDNS & HTTP endpoints (`:5238`).
+     - ShanuConnect / KDE Connect protocol engine (`:1716`).
+  3. **WebDrop / WebPortal**:
+     - Browser file transfer portal at `http://<IP>:53317/web`.
+     - Direct file publishing, download streaming, and text note receiver.
+- **Customization**:
+  - Default English (`en`) dictionary and localization.
+  - 5 Glassmorphism Themes: Ultraviolet, Astro, Carbon, Emerald, Bloodmoon.
 
 ---
 
 ## 📱 Mobile App (`flutter_app/`) — Client & Remote Controller
-The mobile app is optimized for single-hand touch interaction:
 
-- **Primary Mobile Views & Controllers**:
-  1. `File Sharing`: Send files to PC or mobile peers; receive files via `shelf` LocalSend receiver.
-  2. `Mobile Remote Touchpad (`KdeConnectView`)`: Use phone screen as a wireless trackpad (gesture movement, tap-to-click, left/right buttons, scroll).
-  3. `Media Remote & Clicker`: Remote volume scrubber, play/pause controls, and presentation slide clicker.
-  4. `WebDrop Portal`: Embedded shelf webdrop server.
-- **Excluded from Mobile UI**:
-  - `Scrcpy Host Window Launcher` (scrcpy runs as a host process on PC, capturing phone displays).
+The mobile app is built with Flutter and Dart, optimized for mobile devices:
+
+- **Primary Views & Services**:
+  1. **Universal Transfer Manager (`home_view.dart`)**:
+     - File picker, subnet scanner, live MB/s speed meter badge, and transfer progress bar.
+  2. **ShanuConnect Remote Controller (`shanu_connect_view.dart` & `remote_trackpad_view.dart`)**:
+     - Remote trackpad (gestures, tap-to-click, scroll), system volume scrubber, media player clicker (play/pause/skip), presentation slide controller, phone ringer trigger, and remote workstation lock.
+  3. **Mobile WebDrop Server (`webdrop_server.dart`)**:
+     - Embedded Shelf HTTP server hosting the mobile WebPortal and generating QR codes for browser sharing.
+  4. **Quick Share Outbound Service (`quickshare_service.dart`)**:
+     - Direct file sender targeting Quick Share endpoints.
 
 ---
 
-## 🚀 Build & Integration Verification
+## 🚀 Build & Integration Verification Matrix
 
-- **Rust Protocol Core**: `cargo check --package shanusend-core` → Clean (0 errors)
-- **Tauri App Backend**: `cargo check` in `app/src-tauri` → Clean (0 errors)
-- **Tauri Frontend**: `npm run build` in `app/` → Clean bundle (0 errors)
-- **Flutter Mobile App**: `flutter analyze` in `flutter_app/` → No issues found! (0 errors)
-- **CI/CD Workflows**: Disabled across `.github/workflows/*.yml` (`on: []`) for local builds.
+| Component | Target Platform | Verification Command | Result |
+| :--- | :--- | :--- | :--- |
+| **Rust Core** (`core/`) | Multi-Platform Engine | `cargo check` | **PASSED** (0 errors) |
+| **Desktop App** (`app/src-tauri`) | Windows / macOS / Linux | `cargo check` | **PASSED** (0 errors) |
+| **Desktop Web UI** (`app/`) | React 19 + TypeScript | `npx tsc --noEmit` | **PASSED** (0 errors) |
+| **Desktop Executable & Bundle** (`app/`) | Windows x64 | `npx tauri build` | **PASSED** (EXE + MSI + NSIS) |
+| **Flutter Mobile App** (`flutter_app/`) | Android / iOS | `flutter analyze` | **PASSED** (0 issues found!) |
+
+---
+
+*Last Updated: September 2026*
