@@ -18,6 +18,8 @@ import { QuickShareModal } from "./features/quickshare/QuickShareModal";
 import { ShanuConnectModal } from "./features/shanuconnect/ShanuConnectModal";
 import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
+import ScrcpyHub from "./features/scrcpy/ScrcpyHub";
+
 type ActiveTab = "transfer" | "mirror" | "shanuconnect";
 
 export default function App() {
@@ -208,38 +210,8 @@ export default function App() {
           )}
 
           {activeTab === "mirror" && (
-            <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neon-cyan/20 text-neon-cyan">
-                    <Monitor size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Desktop Screen Mirror Host</h3>
-                    <p className="text-xs text-slate-400">Stream connected Android screens using high-performance Scrcpy H.264/H.265 engine</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMirrorOpen(true)}
-                  className="glass-button-primary text-xs px-4 py-2"
-                >
-                  Configure & Start Mirror
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-xs text-slate-300">
-                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
-                  <p className="font-semibold text-neon-cyan">Wireless ADB Pairing</p>
-                  <p className="mt-1 text-[11px] text-slate-400">Pair Android 11+ over Wi-Fi without USB cables</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
-                  <p className="font-semibold text-neon-violet">Hardware OTG Mode</p>
-                  <p className="mt-1 text-[11px] text-slate-400">Seamless cursor & physical keyboard forwarding</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-void-950/60 p-3">
-                  <p className="font-semibold text-emerald-400">Opus Audio Pass-Through</p>
-                  <p className="mt-1 text-[11px] text-slate-400">Low-latency internal device audio streaming</p>
-                </div>
-              </div>
+            <div className="flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+              <ScrcpyHub />
             </div>
           )}
 

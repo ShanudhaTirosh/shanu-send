@@ -2,6 +2,9 @@
 
 mod commands;
 mod state;
+#[cfg(target_os = "windows")]
+mod grab;
+mod shortcuts;
 
 use shanusend_core::discovery;
 use shanusend_core::models::{Device, DeviceType};
@@ -21,6 +24,8 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(shortcuts::plugin())
         .setup(|app| {
             let app_handle = app.handle().clone();
             let app_data_dir = app
@@ -64,6 +69,19 @@ fn main() {
                 kde_engine,
             });
 
+            app.manage(commands::ScrcpyState {
+                processes: std::sync::Mutex::new(std::collections::HashMap::new()),
+                active_device: std::sync::Mutex::new(None),
+                final_capture_hint: std::sync::Mutex::new(std::collections::HashMap::new()),
+            });
+
+            if let Err(e) = shortcuts::register(app.handle()) {
+                eprintln!("[shortcuts] failed to register global shortcuts: {e}");
+            }
+
+            #[cfg(target_os = "windows")]
+            grab::register(app.handle());
+
             // --- Receiving side: HTTP server -------------------------------
             let router = shanusend_core::server::build_router(server_state.clone());
             tauri::async_runtime::spawn(async move {
@@ -80,16 +98,10 @@ fn main() {
                 }
             });
 
-            // --- Forward server-side events (incoming requests, upload
-            // progress) to the frontend as Tauri events, and persist
-            // completed/failed receives to history. -------------------------
+            // --- Forward server-side events -------------------------
             let events_handle = app_handle.clone();
             let history_path_for_receive = history_path.clone();
             tauri::async_runtime::spawn(async move {
-                // ServerEvent::UploadComplete/Failed only carry session_id +
-                // file_id, not the original file name or sender — so we
-                // remember those from the IncomingRequest event that always
-                // precedes them for the same session.
                 let mut pending_meta: std::collections::HashMap<
                     (String, String),
                     (String, String, u64),
@@ -175,7 +187,6 @@ fn main() {
             tauri::async_runtime::spawn(async move {
                 let (mut discovery_rx, _discovery_handle) = discovery::listen();
                 while let Some(evt) = discovery_rx.recv().await {
-                    // Don't surface our own announcements back to ourselves.
                     if evt.dto.fingerprint == cert.fingerprint {
                         continue;
                     }
@@ -196,8 +207,6 @@ fn main() {
                     };
                     let _ = discovery_events_handle.emit("device-discovered", &device);
 
-                    // Per protocol: reply directly (unicast) rather than
-                    // re-broadcasting, to keep multicast traffic low.
                     if evt
                         .dto
                         .announce
@@ -280,6 +289,28 @@ fn main() {
             commands::webdrop_share_files,
             commands::webdrop_get_shared_files,
             commands::webdrop_clear_shared_files,
+            // ScrcpyGUI v4 Suite Commands
+            commands::check_scrcpy,
+            commands::get_devices,
+            commands::get_mdns_devices,
+            commands::adb_connect,
+            commands::adb_pair,
+            commands::adb_shell,
+            commands::push_file,
+            commands::install_apk,
+            commands::kill_adb,
+            commands::run_scrcpy,
+            commands::stop_scrcpy,
+            commands::recenter_scrcpy_window,
+            commands::set_active_device,
+            commands::download_scrcpy,
+            commands::list_scrcpy_options,
+            commands::get_render_drivers,
+            commands::get_videos_dir,
+            commands::save_report,
+            commands::get_scrcpy_bin_dir,
+            commands::run_terminal_command,
+            commands::check_scrcpy_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ShanuSend");

@@ -11,6 +11,8 @@ tauri-build = { version = "2", features = [] }
 shanusend-core = { path = "../../core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -20,21 +22,21 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 dirs = "5"
 zip = "2.1"
+flate2 = "1.0"
+tar = "0.4"
+chrono = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-manual-roots", "stream"] }
 futures-util = "0.3"
 local-ip-address = "0.6"
 
-
-# NOTE: previously pinned to exact mid-2024 versions to work around a
-# development sandbox stuck on rustc 1.75. That pinning is what caused a
-# real CI failure: `tauri-build = "=2.0.3"` was left unpinned relative to
-# its sibling crate `tauri-utils`, which resolved independently to a much
-# newer `2.9.3` and broke on an internal API tauri-build 2.0.3 called with
-# the old signature (`save_global_api_scripts_paths`, `read_from`,
-# `external_binaries`). The fix is exactly this: don't hand-pin individual
-# crates from a fast-moving, co-versioned family (tauri/tauri-build/
-# tauri-utils/tauri-plugin-*) — let Cargo resolve them together. Tauri 2
-# requires Rust >= 1.77 regardless of any of this.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
+
