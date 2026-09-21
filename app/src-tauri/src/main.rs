@@ -44,8 +44,9 @@ fn main() {
                 fingerprint: cert.fingerprint.clone(),
             };
 
+            let use_https = cfg!(feature = "tls");
             let (server_state, mut server_events) =
-                ServerState::new(device_info, port, false, None, state::default_save_dir());
+                ServerState::new(device_info, port, use_https, None, state::default_save_dir());
 
             let history_path = app_data_dir.join("history.json");
             let shanu_app_handle = app_handle.clone();
@@ -101,19 +102,32 @@ fn main() {
             #[cfg(target_os = "windows")]
             grab::register(app.handle());
 
-            // --- Receiving side: HTTP server -------------------------------
+            // --- Receiving side: HTTP/HTTPS server -------------------------------
             let router = shanusend_core::server::build_router(server_state.clone());
+            let cert_der = cert.cert_der.clone();
+            let key_der = cert.key_der.clone();
             tauri::async_runtime::spawn(async move {
-                let listener = match tokio::net::TcpListener::bind(("0.0.0.0", port)).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        tracing::error!("failed to bind HTTP server on port {port}: {e}");
-                        return;
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+                #[cfg(feature = "tls")]
+                {
+                    info!("ShanuSend HTTPS server listening on 0.0.0.0:{port}");
+                    if let Err(e) = shanusend_core::server::serve_tls(router, addr, cert_der, key_der).await {
+                        tracing::error!("HTTPS server error: {e}");
                     }
-                };
-                info!("ShanuSend HTTP server listening on 0.0.0.0:{port}");
-                if let Err(e) = axum::serve(listener, router).await {
-                    tracing::error!("HTTP server error: {e}");
+                }
+                #[cfg(not(feature = "tls"))]
+                {
+                    let listener = match tokio::net::TcpListener::bind(addr).await {
+                        Ok(l) => l,
+                        Err(e) => {
+                            tracing::error!("failed to bind HTTP server on port {port}: {e}");
+                            return;
+                        }
+                    };
+                    info!("ShanuSend HTTP server listening on 0.0.0.0:{port}");
+                    if let Err(e) = axum::serve(listener, router).await {
+                        tracing::error!("HTTP server error: {e}");
+                    }
                 }
             });
 
@@ -235,7 +249,7 @@ fn main() {
                             &discovery_alias,
                             &cert.fingerprint,
                             port,
-                            false,
+                            cfg!(feature = "tls"),
                             Some("Desktop".to_string()),
                             DeviceType::Desktop,
                             false,
@@ -254,7 +268,7 @@ fn main() {
                         &announce_alias,
                         &announce_fingerprint,
                         port,
-                        false,
+                        cfg!(feature = "tls"),
                         Some("Desktop".to_string()),
                         DeviceType::Desktop,
                         true,

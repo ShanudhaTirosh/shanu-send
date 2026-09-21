@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Zap, Settings as SettingsIcon, History as HistoryIcon, QrCode, Smartphone, Monitor, FolderUp } from "lucide-react";
+import { Send, Download, Monitor, Settings as SettingsIcon, History as HistoryIcon, QrCode, Smartphone, Wifi, Wrench } from "lucide-react";
 import type { Device } from "./types";
 import { useDevices } from "./features/discovery/useDevices";
 import { DeviceList } from "./features/discovery/DeviceList";
@@ -20,7 +20,7 @@ import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 import ScrcpyHub from "./features/scrcpy/ScrcpyHub";
 
-type ActiveTab = "transfer" | "mirror" | "shanuconnect";
+type ActiveTab = "send" | "receive" | "devices" | "tools" | "settings";
 
 export default function App() {
   if (typeof window !== "undefined" && (window.location.pathname.startsWith("/web") || window.location.pathname.startsWith("/webdrop"))) {
@@ -32,7 +32,10 @@ export default function App() {
   const [files, setFiles] = useState<LocalFileInput[]>([]);
   const [progress, setProgress] = useState<Record<string, FileProgressState>>({});
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("transfer");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("send");
+
+  // Secondary Tools Sub-tab
+  const [toolsTab, setToolsTab] = useState<"mirror" | "shanuconnect">("mirror");
 
   // Modals
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -55,7 +58,7 @@ export default function App() {
   const canSend = selected !== null && files.length > 0 && !sending;
 
   return (
-    <div className="mx-auto flex h-screen max-w-6xl flex-col gap-5 p-6">
+    <div className="mx-auto flex h-screen max-w-6xl flex-col gap-4 p-5 bg-slate-950 text-slate-100">
       <IncomingRequestModal />
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
@@ -65,62 +68,46 @@ export default function App() {
       <ShanuConnectModal isOpen={kdeConnectOpen} onClose={() => setKdeConnectOpen(false)} deviceName={selected?.alias || "ShanuConnect Device"} />
 
       {/* Header Bar */}
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-center justify-between border-b border-slate-800 pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-neon-cyan to-neon-violet shadow-glow">
-            <Zap size={20} className="text-void-950" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-base shadow-sm">
+            S
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              ShanuSend <span className="rounded-full bg-neon-cyan/10 px-2 py-0.5 text-[10px] font-semibold text-neon-cyan border border-neon-cyan/20">Desktop Pro v2.5</span>
+            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              ShanuSend <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">v2.5.3</span>
             </h1>
-            <p className="text-xs text-slate-400">Universal LAN Sharing, Scrcpy Mirroring & ShanuConnect Suite</p>
+            <p className="text-xs text-slate-400">LocalSend-compatible file sharing & extension suite</p>
           </div>
         </div>
 
-        {/* Action Header Items */}
+        {/* Action Header Tools */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveTab("shanuconnect")}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-            title="ShanuConnect Suite Workspace"
+            onClick={() => setAirDropOpen(true)}
+            className="localsend-button text-xs"
+            title="WebDrop Browser Portal"
           >
-            <Smartphone size={15} className="text-cyan-400" />
-            <span>ShanuConnect Hub</span>
+            <QrCode size={14} />
+            <span>WebDrop</span>
           </button>
           <button
             onClick={() => setQuickShareOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20"
+            className="localsend-button text-xs"
             title="Quick Share Engine"
           >
             <span>Quick Share</span>
           </button>
           <button
-            onClick={() => setMirrorOpen(true)}
-            className="glass-button text-xs"
-            title="Screen Mirroring (Desktop Host)"
-          >
-            <Monitor size={15} className="text-neon-cyan" />
-            <span className="hidden sm:inline">Screen Mirror</span>
-          </button>
-          <button
-            onClick={() => setAirDropOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
-            title="AirDrop / WebDrop Portal"
-          >
-            <QrCode size={15} />
-            <span>WebDrop Portal</span>
-          </button>
-          <button
             onClick={() => setHistoryOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 transition hover:bg-slate-800"
             title="History"
           >
             <HistoryIcon size={16} />
           </button>
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 transition hover:bg-slate-800"
             title="Settings"
           >
             <SettingsIcon size={16} />
@@ -128,106 +115,156 @@ export default function App() {
         </div>
       </header>
 
-      {/* Target Device Contextual Banner */}
+      {/* Primary LocalSend-Style Navigation Rail/Tabs */}
+      <nav className="flex gap-2 border-b border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveTab("send")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+            activeTab === "send" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Send size={14} />
+          <span>Send</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("receive")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+            activeTab === "receive" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Download size={14} />
+          <span>Receive</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("devices")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+            activeTab === "devices" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Wifi size={14} />
+          <span>Nearby Devices ({devices.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("tools")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+            activeTab === "tools" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Wrench size={14} />
+          <span>Tools & Extensions</span>
+        </button>
+      </nav>
+
+      {/* Target Device Context Banner */}
       {selected && (
-        <div className="flex items-center justify-between rounded-xl border border-neon-cyan/30 bg-neon-cyan/5 px-4 py-2 text-xs text-neon-cyan animate-fade-in">
+        <div className="flex items-center justify-between rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs text-blue-400">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-neon-cyan animate-ping" />
-            <span className="font-semibold">Target Device: {selected.alias}</span>
+            <span className="flex h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="font-semibold">Selected Peer: {selected.alias}</span>
             <span className="text-slate-400">({selected.device_type} &middot; {selected.ip})</span>
           </div>
-          <div className="flex items-center gap-3">
-            {selected.device_type === "Mobile" && (
-              <button
-                onClick={() => setMirrorOpen(true)}
-                className="font-semibold text-neon-cyan hover:underline"
-              >
-                Launch Screen Mirror →
-              </button>
-            )}
-            <button
-              onClick={() => setSelected(null)}
-              className="text-slate-400 hover:text-white"
-            >
-              Deselect
-            </button>
-          </div>
+          <button
+            onClick={() => setSelected(null)}
+            className="text-slate-400 hover:text-white"
+          >
+            Deselect
+          </button>
         </div>
       )}
 
-      {/* Primary Navigation Tabs */}
-      <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1.5 backdrop-blur-glass">
-        <button
-          onClick={() => setActiveTab("transfer")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "transfer" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <FolderUp size={15} />
-          <span>File Transfer</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("mirror")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "mirror" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Monitor size={15} />
-          <span>Screen Mirroring</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("shanuconnect")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition ${
-            activeTab === "shanuconnect" ? "bg-white/15 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Smartphone size={15} />
-          <span>ShanuConnect Hub</span>
-        </button>
-      </div>
-
-      {/* Main Grid View */}
-      <main className="grid flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
+      {/* Main View Area */}
+      <main className="grid flex-1 grid-cols-1 gap-5 overflow-hidden md:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex flex-col gap-4 overflow-y-auto pr-1">
-          {activeTab === "transfer" && (
+          {activeTab === "send" && (
             <>
               <DropZone files={files} onFilesChange={setFiles} />
               {Object.keys(progress).length > 0 && <TransferProgress files={files} progress={progress} />}
-              <IncomingTransferPanel />
 
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 disabled={!canSend}
                 onClick={handleSend}
-                className={`glass-button-primary mt-auto py-3 text-sm font-semibold ${
+                className={`localsend-button-primary mt-auto py-3 text-sm font-semibold ${
                   canSend ? "opacity-100" : "opacity-50 cursor-not-allowed"
                 }`}
               >
                 <Send size={16} />
-                {selected ? `Send to ${selected.alias}` : "Select a device to send"}
+                {selected ? `Send to ${selected.alias}` : "Select a device from Nearby Devices to send"}
               </motion.button>
             </>
           )}
 
-          {activeTab === "mirror" && (
-            <div className="flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-              <ScrcpyHub />
+          {activeTab === "receive" && (
+            <div className="flex flex-col gap-4">
+              <IncomingTransferPanel />
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-center text-xs text-slate-400">
+                <p className="font-semibold text-slate-200 mb-1">LocalSend Receiver Ready</p>
+                <p>Your device is visible over LAN multicast. Incoming file transfer requests will appear here automatically.</p>
+              </div>
             </div>
           )}
 
-          {activeTab === "shanuconnect" && (
-            <PhoneControlPanel selectedDevice={selected} devices={devices} />
+          {activeTab === "devices" && (
+            <div className="flex-1 overflow-hidden">
+              <DeviceList
+                devices={devices}
+                scanning={scanning}
+                selected={selected}
+                onSelect={setSelected}
+                onRescan={rescan}
+              />
+            </div>
+          )}
+
+          {activeTab === "tools" && (
+            <div className="flex flex-col gap-4 flex-1">
+              <div className="flex gap-2 border-b border-slate-800 pb-2">
+                <button
+                  onClick={() => setToolsTab("mirror")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    toolsTab === "mirror" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Monitor size={14} />
+                  <span>Screen Mirroring (Scrcpy)</span>
+                </button>
+                <button
+                  onClick={() => setToolsTab("shanuconnect")}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    toolsTab === "shanuconnect" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Smartphone size={14} />
+                  <span>ShanuConnect Suite</span>
+                </button>
+              </div>
+
+              {toolsTab === "mirror" && (
+                <div className="flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                  <ScrcpyHub />
+                </div>
+              )}
+
+              {toolsTab === "shanuconnect" && (
+                <PhoneControlPanel selectedDevice={selected} devices={devices} />
+              )}
+            </div>
           )}
         </div>
 
-        {/* Discovery Device Sidebar */}
-        <DeviceList
-          devices={devices}
-          scanning={scanning}
-          selected={selected}
-          onSelect={setSelected}
-          onRescan={rescan}
-        />
+        {/* Sidebar Device Discovery list (for Send tab) */}
+        {activeTab === "send" && (
+          <DeviceList
+            devices={devices}
+            scanning={scanning}
+            selected={selected}
+            onSelect={setSelected}
+            onRescan={rescan}
+          />
+        )}
       </main>
     </div>
   );

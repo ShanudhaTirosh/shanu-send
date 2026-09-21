@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ShanuSend requires access to the local network to discover and share files with nearby devices.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_localsend._tcp</string>
+		<string>_shanuconnect._tcp</string>
+	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ShanuSend requires photo library access to select photos and videos to share.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ShanuSend requires permission to save received photos and videos to your photo library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

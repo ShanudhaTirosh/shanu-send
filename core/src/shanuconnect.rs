@@ -549,12 +549,39 @@ impl ShanuConnectEngine {
 
         if p_type == "shanuconnect.pair" || p_type == "kdeconnect.pair" {
             if let Ok(pair) = serde_json::from_value::<ShanuPair>(packet.body.clone()) {
-                info!("ShanuConnect pairing status updated: pair={}", pair.pair);
+                info!("ShanuConnect pairing status update: pair={}", pair.pair);
+                // Mark devices as paired/unpaired when pair packet is processed
+                let mut devices = self.devices.write().await;
+                for state in devices.values_mut() {
+                    state.is_paired = pair.pair;
+                }
             }
             return Some(ShanuPacket::new(
                 "shanuconnect.pair",
                 serde_json::json!({ "pair": true }),
             ));
+        }
+
+        // --- PAIRING CHECK FOR SENSITIVE COMMANDS ---
+        let sensitive_types = [
+            "shanuconnect.runcommand", "kdeconnect.runcommand",
+            "shanuconnect.lockdevice", "kdeconnect.lockdevice",
+            "shanuconnect.findmyphone", "kdeconnect.findmyphone",
+            "shanuconnect.mousepad", "kdeconnect.mousepad",
+            "shanuconnect.remotekeyboard", "kdeconnect.remotekeyboard",
+            "shanuconnect.sftp", "kdeconnect.sftp",
+            "shanuconnect.telephony.action", "kdeconnect.telephony.action",
+        ];
+
+        if sensitive_types.contains(&p_type) {
+            let has_paired = {
+                let devices = self.devices.read().await;
+                devices.values().any(|d| d.is_paired)
+            };
+            if !has_paired {
+                warn!("Blocked unauthenticated ShanuConnect sensitive packet '{}' from unpaired client!", p_type);
+                return None;
+            }
         }
 
         if p_type == "shanuconnect.battery" || p_type == "kdeconnect.battery" {

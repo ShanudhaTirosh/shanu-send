@@ -12,13 +12,8 @@
   }
 
   body {
-    @apply bg-void-950 text-slate-100 antialiased selection:bg-neon-cyan/30 selection:text-neon-cyan;
-    background-image:
-      radial-gradient(circle at 15% 15%, rgba(157, 123, 255, 0.15), transparent 45%),
-      radial-gradient(circle at 85% 85%, rgba(77, 217, 255, 0.12), transparent 50%),
-      radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.05), transparent 60%);
-    background-attachment: fixed;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    @apply bg-slate-900 text-slate-100 antialiased selection:bg-blue-500/30 selection:text-blue-400;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   ::-webkit-scrollbar {
@@ -26,136 +21,66 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: rgba(10, 13, 22, 0.6);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(77, 217, 255, 0.4);
+    background: rgba(59, 130, 246, 0.5);
   }
 }
 
 @layer components {
-  .glass-panel {
-    @apply rounded-glass border border-white/10 bg-white/[0.04] backdrop-blur-glass shadow-glass transition-all duration-300;
+  /* LocalSend Flat Card Token */
+  .localsend-card {
+    @apply rounded-2xl border border-slate-800 bg-slate-900/90 p-4 transition-all duration-200;
   }
-  
-  .glass-panel-glow {
-    @apply rounded-glass border border-neon-cyan/30 bg-white/[0.06] backdrop-blur-glass shadow-glow transition-all duration-300;
+
+  .localsend-card-active {
+    @apply rounded-2xl border border-blue-500/50 bg-blue-500/5 p-4 transition-all duration-200;
+  }
+
+  .localsend-button {
+    @apply flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-all duration-150 hover:border-slate-600 hover:bg-slate-700 hover:text-white active:scale-[0.98];
+  }
+
+  .localsend-button-primary {
+    @apply flex items-center justify-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-blue-500 active:scale-[0.98];
+  }
+
+  .glass-panel {
+    @apply rounded-2xl border border-slate-800 bg-slate-900/90 transition-all duration-200;
   }
 
   .glass-button {
-    @apply flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition-all duration-200 hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-[0.98];
+    @apply flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-medium text-slate-200 transition-all duration-150 hover:border-slate-600 hover:bg-slate-700 hover:text-white active:scale-[0.98];
   }
 
   .glass-button-primary {
-    @apply flex items-center justify-center gap-2 rounded-xl border border-neon-cyan/40 bg-gradient-to-r from-neon-cyan/20 to-neon-violet/20 px-5 py-2.5 text-sm font-semibold text-white shadow-glow transition-all duration-200 hover:border-neon-cyan hover:from-neon-cyan/30 hover:to-neon-violet/30 active:scale-[0.98];
+    @apply flex items-center justify-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-blue-500 active:scale-[0.98];
   }
 
   .trackpad-canvas {
-    @apply relative h-64 w-full rounded-2xl border border-white/10 bg-void-900/80 backdrop-blur-md transition-all select-none active:border-neon-cyan/50;
-    background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    @apply relative h-64 w-full rounded-2xl border border-slate-800 bg-slate-950 transition-all select-none active:border-blue-500/50;
+    background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 }
 
-/* ── Scrcpy v4 Theme & Mode Tokens ───────────────────────── */
 :root {
-  --primary: #8b5cf6;
-  --text-on-primary: #ffffff;
-  --bg-base: #010101;
-  --text-base: #e4e4e7;
-  --text-muted: #a1a1aa;
-  --text-subtle: #71717a;
-  --bg-surface: #18181b;
-  --bg-elevated: #09090b;
-  --bg-input: #27272a;
-  --border-base: #27272a;
-  --border-subtle: #3f3f46;
-  --glass-bg: rgba(24, 24, 27, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --scrollbar-track: #09090b;
-  --scrollbar-thumb: #27272a;
-  --scrollbar-thumb-hover: #3f3f46;
-  --swatch-border: rgba(255, 255, 255, 0.15);
-}
-
-[data-theme='ultraviolet'] {
-  --primary: #8b5cf6;
-  --text-on-primary: #ffffff;
-  --bg-base: #06040a;
-}
-[data-theme='astro'] {
   --primary: #3b82f6;
   --text-on-primary: #ffffff;
-  --bg-base: #04050a;
+  --bg-base: #0f172a;
+  --text-base: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --bg-surface: #1e293b;
+  --bg-elevated: #0f172a;
+  --bg-input: #334155;
+  --border-base: #334155;
+  --border-subtle: #1e293b;
+  --glass-bg: rgba(30, 41, 59, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
-[data-theme='carbon'] {
-  --primary: #ffffff;
-  --text-on-primary: #09090b;
-  --bg-base: #0a0a0a;
-}
-[data-theme='emerald'] {
-  --primary: #10b981;
-  --text-on-primary: #ffffff;
-  --bg-base: #040a08;
-}
-[data-theme='bloodmoon'] {
-  --primary: #ef4444;
-  --text-on-primary: #ffffff;
-  --bg-base: #0a0404;
-}
-
-[data-mode='light'] {
-  --text-base: #1c1917;
-  --text-muted: #57534e;
-  --text-subtle: #78716c;
-  --bg-surface: #fafaf9;
-  --bg-elevated: #f5f5f4;
-  --bg-input: #e7e5e4;
-  --border-base: #d6d3d1;
-  --border-subtle: #e7e5e4;
-  --glass-bg: rgba(250, 250, 249, 0.78);
-  --glass-border: rgba(28, 25, 23, 0.12);
-  --scrollbar-track: transparent;
-  --scrollbar-thumb: #d6d3d1;
-  --scrollbar-thumb-hover: #a8a29e;
-  --swatch-border: rgba(28, 25, 23, 0.25);
-  color-scheme: light;
-}
-
-[data-theme='ultraviolet'][data-mode='light'] { --bg-base: #f5f1ff; }
-[data-theme='astro'][data-mode='light'] { --bg-base: #eef4ff; }
-[data-theme='carbon'][data-mode='light'] { --bg-base: #f5f5f4; --primary: #1c1917; --text-on-primary: #fafaf9; }
-[data-theme='emerald'][data-mode='light'] { --bg-base: #ecfdf5; }
-[data-theme='bloodmoon'][data-mode='light'] { --bg-base: #fff1f2; }
-
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-}
-
-[data-mode='light'] .force-dark,
-[data-mode='light'] .force-dark.glass {
-  background-color: rgba(9, 9, 11, 0.94) !important;
-  border-color: rgba(255, 255, 255, 0.07) !important;
-}
-
-[data-mode='light'] .force-dark .text-white { color: #ffffff !important; }
-[data-mode='light'] .force-dark .text-zinc-200 { color: #e4e4e7 !important; }
-[data-mode='light'] .force-dark .text-zinc-300 { color: #d4d4d8 !important; }
-[data-mode='light'] .force-dark .text-zinc-400 { color: #a1a1aa !important; }
-[data-mode='light'] .force-dark .text-zinc-500 { color: #71717a !important; }
-[data-mode='light'] .force-dark .text-zinc-600 { color: #52525b !important; }
-[data-mode='light'] .force-dark .text-zinc-700 { color: #3f3f46 !important; }
-[data-mode='light'] .force-dark .border-zinc-800 { border-color: #27272a !important; }
-[data-mode='light'] .force-dark .border-zinc-800\/80 { border-color: rgba(39,39,42,0.8) !important; }
-[data-mode='light'] .force-dark .border-zinc-900 { border-color: #18181b !important; }
-[data-mode='light'] .force-dark .bg-black\/60 { background-color: rgba(0,0,0,0.92) !important; }
-[data-mode='light'] .force-dark .bg-black\/40 { background-color: rgba(0,0,0,0.80) !important; }
-[data-mode='light'] .force-dark .bg-zinc-900\/40 { background-color: rgba(24,24,27,0.90) !important; }
-[data-mode='light'] .force-dark .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
