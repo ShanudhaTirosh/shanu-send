@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/device_dto.dart';
@@ -8,9 +10,7 @@ import '../services/transfer_service.dart';
 import '../services/webdrop_server.dart';
 import '../widgets/speed_badge.dart';
 import '../widgets/webdrop_modal.dart';
-
 import 'shanu_connect_view.dart';
-
 import '../services/receiver_service.dart';
 import '../services/notification_service.dart';
 
@@ -27,6 +27,7 @@ class _HomeViewState extends State<HomeView> {
   final WebDropServer _webDropServer = WebDropServer();
   final ReceiverService _receiverService = ReceiverService();
 
+  int _currentNavIndex = 0;
   String? _localIp;
   List<FileDto> _selectedFiles = [];
   TransferStatus? _activeTransfer;
@@ -152,6 +153,16 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  String _getPlatformLabel() {
+    if (kIsWeb) return 'Web';
+    if (Platform.isWindows) return 'Windows Desktop';
+    if (Platform.isMacOS) return 'macOS';
+    if (Platform.isLinux) return 'Linux';
+    if (Platform.isAndroid) return 'Android';
+    if (Platform.isIOS) return 'iOS';
+    return 'Native App';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,17 +170,26 @@ class _HomeViewState extends State<HomeView> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B0F19),
         elevation: 0,
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.bolt_rounded, color: Color(0xFF38BDF8), size: 28),
-            SizedBox(width: 8),
-            Text(
-              'ShanuSend Mobile',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
+            const Icon(Icons.bolt_rounded, color: Color(0xFF38BDF8), size: 28),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ShanuSend',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                Text(
+                  _getPlatformLabel(),
+                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
+                ),
+              ],
             ),
           ],
         ),
@@ -191,221 +211,419 @@ class _HomeViewState extends State<HomeView> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_activeTransfer != null) ...[
-              SpeedBadge(status: _activeTransfer!),
-              const SizedBox(height: 20),
-            ],
+      body: IndexedStack(
+        index: _currentNavIndex,
+        children: [
+          _buildTransfersTab(),
+          const ShanuConnectView(deviceName: 'Host PC Controller'),
+          _buildWebDropTab(),
+          _buildPairingTab(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentNavIndex,
+        onTap: (idx) => setState(() => _currentNavIndex = idx),
+        backgroundColor: const Color(0xFF090B11),
+        selectedItemColor: const Color(0xFF38BDF8),
+        unselectedItemColor: const Color(0xFF64748B),
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.swap_horiz_rounded),
+            label: 'Transfers',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mouse_rounded),
+            label: 'Mobile Remote',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.language_rounded),
+            label: 'WebDrop',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.devices_rounded),
+            label: 'Pair & Hub',
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Quick Actions Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF161E2E), Color(0xFF1E1B4B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF283548)),
+  Widget _buildTransfersTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_activeTransfer != null) ...[
+            SpeedBadge(status: _activeTransfer!),
+            const SizedBox(height: 20),
+          ],
+
+          // Quick Actions Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF161E2E), Color(0xFF1E1B4B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedFiles.isEmpty
-                              ? 'Select files to send'
-                              : '${_selectedFiles.length} file(s) ready',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _localIp != null ? 'Your IP: $_localIp' : 'Detecting network...',
-                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _pickFiles,
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text(_selectedFiles.isEmpty ? 'Select Files' : 'Change Files'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
-                ],
-              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF283548)),
             ),
-
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Row(
               children: [
-                const Text(
-                  'Nearby Devices',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedFiles.isEmpty
+                            ? 'Select files to send'
+                            : '${_selectedFiles.length} file(s) ready',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _localIp != null ? 'Your IP: $_localIp' : 'Detecting network...',
+                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
-                StreamBuilder<List<DeviceDto>>(
-                  stream: _discoveryService.deviceStream,
-                  builder: (context, snapshot) {
-                    final isScanning = _discoveryService.isScanning;
-                    return Row(
-                      children: [
-                        if (isScanning)
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)),
-                          ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${snapshot.data?.length ?? 0} found',
-                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                        ),
-                      ],
-                    );
-                  },
+                ElevatedButton.icon(
+                  onPressed: _pickFiles,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(_selectedFiles.isEmpty ? 'Select Files' : 'Change Files'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 12),
-
-            // Discovered Devices List
-            Expanded(
-              child: StreamBuilder<List<DeviceDto>>(
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Nearby Devices',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              StreamBuilder<List<DeviceDto>>(
                 stream: _discoveryService.deviceStream,
-                initialData: _discoveryService.devices,
                 builder: (context, snapshot) {
-                  final devices = snapshot.data ?? [];
-                  if (devices.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.radar_rounded, size: 64, color: Colors.white.withValues(alpha: 0.2)),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Scanning local network...',
-                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Make sure target devices are on the same Wi-Fi',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                          ),
-                        ],
+                  final isScanning = _discoveryService.isScanning;
+                  return Row(
+                    children: [
+                      if (isScanning)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)),
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${snapshot.data?.length ?? 0} found',
+                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                       ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: devices.length,
-                    itemBuilder: (context, index) {
-                      final device = devices[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF161E2E),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF283548)),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                            child: Icon(
-                              _getDeviceIcon(device.deviceType),
-                              color: const Color(0xFF38BDF8),
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Text(
-                                device.alias,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'LocalSend v2.1',
-                                  style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'ShanuConnect P2P',
-                                  style: TextStyle(color: Color(0xFFA5B4FC), fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            '${device.ip} • ${device.deviceModel}',
-                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.mouse_rounded, color: Color(0xFF38BDF8)),
-                                tooltip: 'Remote Control ${device.alias}',
-                                onPressed: () => _openRemoteController(device.alias),
-                              ),
-                              ElevatedButton(
-                                onPressed: _selectedFiles.isEmpty
-                                    ? null
-                                    : () => _transferService.sendFiles(
-                                          targetDevice: device,
-                                          files: _selectedFiles,
-                                        ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF38BDF8),
-                                  foregroundColor: const Color(0xFF0B0F19),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                child: const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                    ],
                   );
                 },
               ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Discovered Devices List
+          Expanded(
+            child: StreamBuilder<List<DeviceDto>>(
+              stream: _discoveryService.deviceStream,
+              initialData: _discoveryService.devices,
+              builder: (context, snapshot) {
+                final devices = snapshot.data ?? [];
+                if (devices.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.radar_rounded, size: 64, color: Colors.white.withValues(alpha: 0.2)),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Scanning local network...',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Make sure target devices are on the same Wi-Fi',
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: devices.length,
+                  itemBuilder: (context, index) {
+                    final device = devices[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161E2E),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF283548)),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                          child: Icon(
+                            _getDeviceIcon(device.deviceType),
+                            color: const Color(0xFF38BDF8),
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Text(
+                              device.alias,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'LocalSend v2.1',
+                                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'ShanuConnect P2P',
+                                style: TextStyle(color: Color(0xFFA5B4FC), fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          '${device.ip} • ${device.deviceModel}',
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.mouse_rounded, color: Color(0xFF38BDF8)),
+                              tooltip: 'Remote Control ${device.alias}',
+                              onPressed: () => _openRemoteController(device.alias),
+                            ),
+                            ElevatedButton(
+                              onPressed: _selectedFiles.isEmpty
+                                  ? null
+                                  : () => _transferService.sendFiles(
+                                        targetDevice: device,
+                                        files: _selectedFiles,
+                                      ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF38BDF8),
+                                foregroundColor: const Color(0xFF0B0F19),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebDropTab() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.language_rounded, size: 72, color: Color(0xFF38BDF8)),
+          const SizedBox(height: 16),
+          const Text(
+            'WebDrop Browser Sharing Portal',
+            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Share files with any browser on iOS, Android, Windows, Mac or Linux without installing software.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161E2E),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF283548)),
+            ),
+            child: Column(
+              children: [
+                const Text('Portal Server Address:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const SizedBox(height: 8),
+                SelectableText(
+                  _localIp != null ? 'http://$_localIp:53317' : 'http://192.168.1.x:53317',
+                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _openWebDropModal,
+                  icon: const Icon(Icons.qr_code_rounded),
+                  label: const Text('Show QR Code & Link'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF38BDF8),
+                    foregroundColor: const Color(0xFF0B0F19),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPairingTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: ListView(
+        children: [
+          const Text(
+            'Device Hub & Pairing Instructions',
+            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pair devices to unlock remote touchpad control, media playback, presenter clicker, and system commands.',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+          ),
+          const SizedBox(height: 20),
+
+          // SAS PIN Guide Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1B4B), Color(0xFF0F172A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.security_rounded, color: Color(0xFF38BDF8)),
+                    SizedBox(width: 8),
+                    Text('6-Digit SAS PIN Authentication', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '1. Open ShanuConnect on both devices.\n'
+                  '2. Tap "Connect & Pair" on either device.\n'
+                  '3. Locate the 6-digit SAS Security PIN shown on screen.\n'
+                  '4. Input the PIN and tap "Approve & Connect" to authenticate session.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Text(
+            'Discovered Endpoints',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+
+          StreamBuilder<List<DeviceDto>>(
+            stream: _discoveryService.deviceStream,
+            initialData: _discoveryService.devices,
+            builder: (context, snapshot) {
+              final devices = snapshot.data ?? [];
+              if (devices.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161E2E),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'No devices found yet. Scanning LAN...',
+                      style: TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: devices.map((d) {
+                  return Card(
+                    color: const Color(0xFF161E2E),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Icon(_getDeviceIcon(d.deviceType), color: const Color(0xFF38BDF8)),
+                      title: Text(d.alias, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text('${d.ip} • ${d.deviceModel}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      trailing: ElevatedButton.icon(
+                        onPressed: () => _openRemoteController(d.alias),
+                        icon: const Icon(Icons.link_rounded, size: 16),
+                        label: const Text('Pair / Connect'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF38BDF8),
+                          foregroundColor: const Color(0xFF0B0F19),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

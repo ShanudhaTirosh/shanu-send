@@ -115,6 +115,53 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
     );
   }
 
+  void _showPairingHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161E2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.help_outline_rounded, color: Color(0xFF38BDF8)),
+            SizedBox(width: 8),
+            Text('How to Pair Devices', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Step 1: Network Connection', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 4),
+              Text('Ensure both your Desktop PC and Mobile device are connected to the same Wi-Fi or LAN network.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              SizedBox(height: 12),
+              Text('Step 2: Initiate Pairing', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 4),
+              Text('Tap the "Connect & Pair" button on your phone or PC.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              SizedBox(height: 12),
+              Text('Step 3: Enter 6-Digit SAS PIN', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 4),
+              Text('Check the target device for the 6-digit Security PIN code shown on screen or in system notifications.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              SizedBox(height: 12),
+              Text('Step 4: Authenticate & Control', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
+              SizedBox(height: 4),
+              Text('Type the 6-digit PIN into the prompt and tap "Approve & Connect". Once paired, remote touchpad, media control, presentation clicker, and system commands are active!', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF090B11)),
+            child: const Text('Got It!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,6 +203,11 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Pairing Instructions',
+            onPressed: _showPairingHelpDialog,
+          ),
           if (!_isPaired)
             Padding(
               padding: const EdgeInsets.only(right: 12.0),

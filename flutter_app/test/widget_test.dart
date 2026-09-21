@@ -12,6 +12,6 @@ import 'package:shanu_send_flutter/main.dart';
 void main() {
   testWidgets('ShanuSend smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const ShanuSendApp());
-    expect(find.text('ShanuSend Mobile'), findsOneWidget);
+    expect(find.text('ShanuSend'), findsOneWidget);
   });
 }
