@@ -1,47 +1,46 @@
 # ShanuSend — System Status & Platform Matrix
 
-Authoritative system feature matrix and verification status across **Desktop Host (`app/` + `core/`)** and **Mobile Client (`flutter_app/`)**.
+Authoritative system feature matrix and verification status across **Desktop Host (`app/` + `flutter_app/`)** and **Mobile Client (`flutter_app/`)**.
 
 ---
 
-## 🖥️ Desktop App (`app/`) — Host & Management Engine
+## 🖥️ Desktop App (`flutter_app/` & `app/`) — Host & Workstation Engine
 
 The desktop app operates as the central workstation hub for file transfers, display rendering, and multi-protocol discovery:
 
 - **Primary Interface Panels**:
-  1. **ScrcpyGUI v4 Screen Mirroring**:
-     - 3 Capture Modes: Screen Mirror, Camera Webcam Mode, Desktop Virtual Display (`--new-display`).
-     - Camera Torch toggle, Camera Zoom slider, Flex Display mode, VSync toggle, background color customization.
-     - Pro Input: OTG Keyboard/Mouse, HID Keyboard/Mouse simulation, Pure HID (No Mirror) mode.
-     - Win32 Borderless Drag (`Ctrl+Alt+Shift+W`) and Recenter (`Ctrl+Alt+Shift+C`).
-     - Wireless mDNS auto-discovery & native 6-digit PIN pairing modal for Android 11+.
-  2. **Universal File Transfer**:
-     - LocalSend v2.1 multicast listener (`224.0.0.167:53317`).
-     - Apple AirDrop mDNS & HTTPS endpoints (`:8770`).
-     - Google Quick Share mDNS & HTTP endpoints (`:5238`).
-     - ShanuConnect / KDE Connect protocol engine (`:1716`).
-  3. **WebDrop / WebPortal**:
-     - Browser file transfer portal at `http://<IP>:53317/web`.
-     - Direct file publishing, download streaming, and text note receiver.
-- **Customization**:
-  - Default English (`en`) dictionary and localization.
-  - 5 Glassmorphism Themes: Ultraviolet, Astro, Carbon, Emerald, Bloodmoon.
+  1. **ScrcpyGUI Suite (`scrcpy_gui_view.dart`)**:
+     - ADB device discovery picker (USB & Wireless ADB).
+     - Resolution presets: 720p, 1080p, and Original source resolution.
+     - Bitrate tuning (2 - 16 Mbps), FPS caps (30/60 FPS), Video Codecs (H.264, H.265, AV1).
+     - Stay Awake during mirroring toggle, Turn Screen Off toggle, and MP4 Screen Recording engine.
+  2. **Phone Link Host Hub (`desktop_phone_link_view.dart`)**:
+     - Active device selector dropdown with 6-digit SAS Security PIN pairing modal.
+     - **Pure Live Event Stream**: Real-time packet listeners (`shanuconnect.notifications`, `shanuconnect.sms`, `shanuconnect.battery`, `shanuconnect.mpris`) with zero mock/hardcoded demo arrays.
+     - Mirrored phone notifications with inline reply action.
+     - Phone Battery status & charging indicator, Wi-Fi status, and remote phone ringer trigger (`Find Phone`).
+     - SMS reader and manager; call control alerts.
+     - Bidirectional clipboard auto-sync.
+  3. **Universal File Transfer (`home_view.dart`)**:
+     - **UnifiedHttpServer**: Consolidated port `53317` server eliminating `Route not found` errors and uniting LocalSend v2.1 API with WebDrop HTML5 browser portal.
+     - Continuous LAN scanning loop for LocalSend v2.1, Apple AirDrop, Google Quick Share, and ShanuSend P2P.
+  4. **WebDrop Browser Portal**:
+     - Zero-install browser file transfer portal served on port 53317 (`http://<IP>:53317` & `http://<IP>:53317/webdrop`).
 
 ---
 
 ## 📱 Mobile App (`flutter_app/`) — Client & Remote Controller
 
-The mobile app is built with Flutter and Dart, optimized for mobile devices:
+The mobile app is built with Flutter and Dart, optimized for phone/tablet interaction:
 
 - **Primary Views & Services**:
   1. **Universal Transfer Manager (`home_view.dart`)**:
-     - File picker, subnet scanner, live MB/s speed meter badge, and transfer progress bar.
-  2. **ShanuConnect Remote Controller (`shanu_connect_view.dart` & `remote_trackpad_view.dart`)**:
-     - Remote trackpad (gestures, tap-to-click, scroll), system volume scrubber, media player clicker (play/pause/skip), presentation slide controller, phone ringer trigger, and remote workstation lock.
-  3. **Mobile WebDrop Server (`webdrop_server.dart`)**:
-     - Embedded Shelf HTTP server hosting the mobile WebPortal and generating QR codes for browser sharing.
-  4. **Quick Share Outbound Service (`quickshare_service.dart`)**:
-     - Direct file sender targeting Quick Share endpoints.
+     - Multi-file selection, subnet scanner, live MB/s speed meter badge, and transfer progress indicator.
+  2. **Mobile Remote Controller & Device Hub (`shanu_connect_view.dart`)**:
+     - Integrated Device Hub selector bar with 6-digit SAS PIN pairing modal.
+     - Multi-touch trackpad surface (gestures, tap-to-click, scroll), MPRIS media player remote, presenter slide clicker, shared clipboard sync, and remote workstation commands.
+  3. **Unified WebDrop Server (`unified_http_server.dart`)**:
+     - Embedded HTTP server serving the WebDrop portal and generating QR codes for browser sharing.
 
 ---
 
@@ -51,10 +50,11 @@ The mobile app is built with Flutter and Dart, optimized for mobile devices:
 | :--- | :--- | :--- | :--- |
 | **Rust Core** (`core/`) | Multi-Platform Engine | `cargo check` | **PASSED** (0 errors) |
 | **Desktop App** (`app/src-tauri`) | Windows / macOS / Linux | `cargo check` | **PASSED** (0 errors) |
-| **Desktop Web UI** (`app/`) | React 19 + TypeScript | `npx tsc --noEmit` | **PASSED** (0 errors) |
-| **Desktop Executable & Bundle** (`app/`) | Windows x64 | `npx tauri build` | **PASSED** (EXE + MSI + NSIS) |
-| **Flutter Mobile App** (`flutter_app/`) | Android / iOS | `flutter analyze` | **PASSED** (0 issues found!) |
+| **Flutter Analysis** (`flutter_app/`) | Android / iOS / Desktop | `flutter analyze` | **PASSED** (0 issues found!) |
+| **Flutter Test Suite** (`flutter_app/`) | Unit & Widget Tests | `flutter test` | **PASSED** (All tests passed!) |
+| **Windows Native Executable** (`flutter_app/`) | Windows x64 Release | `flutter build windows` | **PASSED** (`shanu_send_flutter.exe`) |
 
 ---
 
 *Last Updated: September 2026*
+
