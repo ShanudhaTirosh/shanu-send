@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -59,9 +60,9 @@ class ReceiverService {
 
     try {
       _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
-      print('ShanuSend Mobile LocalSend Receiver running on port ${_server!.port}');
+      debugPrint('ShanuSend Mobile LocalSend Receiver running on port ${_server!.port}');
     } catch (e) {
-      print('Failed to start LocalSend receiver server: $e');
+      debugPrint('Failed to start LocalSend receiver server: $e');
     }
   }
 

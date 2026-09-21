@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../models/device_dto.dart';
@@ -45,7 +46,7 @@ class DiscoveryService {
       });
       announceSelf(deviceAlias: deviceAlias);
     } catch (e) {
-      print('Multicast initialization warning: $e');
+      debugPrint('Multicast initialization warning: $e');
     }
   }
 
@@ -84,7 +85,7 @@ class DiscoveryService {
       final bytes = utf8.encode(payload);
       _multicastSocket?.send(bytes, InternetAddress('224.0.0.167'), 53317);
     } catch (e) {
-      print('Multicast announce error: $e');
+      debugPrint('Multicast announce error: $e');
     }
   }
 
