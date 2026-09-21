@@ -130,11 +130,13 @@ class ReceiverService {
       );
       _sessions[sessionId] = session;
 
-      _eventController.add(ReceiverEvent('incoming-request', {
-        'sessionId': sessionId,
-        'senderAlias': senderAlias,
-        'files': files,
-      }));
+      if (!_eventController.isClosed) {
+        _eventController.add(ReceiverEvent('incoming-request', {
+          'sessionId': sessionId,
+          'senderAlias': senderAlias,
+          'files': files,
+        }));
+      }
 
       return Response.ok(
         jsonEncode({
@@ -190,23 +192,27 @@ class ReceiverService {
         sink.add(chunk);
         receivedBytes += chunk.length;
 
-        _eventController.add(ReceiverEvent('upload-progress', {
-          'sessionId': sessionId,
-          'fileId': fileId,
-          'receivedBytes': receivedBytes,
-          'totalBytes': fileSize,
-        }));
+        if (!_eventController.isClosed) {
+          _eventController.add(ReceiverEvent('upload-progress', {
+            'sessionId': sessionId,
+            'fileId': fileId,
+            'receivedBytes': receivedBytes,
+            'totalBytes': fileSize,
+          }));
+        }
       }
 
       await sink.flush();
       await sink.close();
 
-      _eventController.add(ReceiverEvent('upload-complete', {
-        'sessionId': sessionId,
-        'fileId': fileId,
-        'savePath': savePath,
-        'fileName': fileName,
-      }));
+      if (!_eventController.isClosed) {
+        _eventController.add(ReceiverEvent('upload-complete', {
+          'sessionId': sessionId,
+          'fileId': fileId,
+          'savePath': savePath,
+          'fileName': fileName,
+        }));
+      }
 
       return Response.ok('Upload complete');
     } catch (e) {

@@ -1,8 +1,30 @@
+# Unwanted Archive & Reference Folders
+unwanted_files/
+archive_unwanted/
+reference_archives/
+
 # Rust & Cargo
 /target/
 **/target/
 Cargo.lock.bak
 *.rs.bk
+
+# Flutter & Dart Builds
+.dart_tool/
+**/.dart_tool/
+/build/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# Compiled Binaries & Libraries
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
 
 # Node & Frontend
 node_modules/
@@ -14,15 +36,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Tauri & Mobile Builds
-app/src-tauri/target/
-app/src-tauri/gen/
-
-
 # Environment & Temp Files
 .env
 .env.local
 *.log
+app_run.log
+log/
 tmp/
 temp/
 
@@ -39,7 +58,7 @@ Desktop.ini
 *.sublime-project
 *.sublime-workspace
 
-# Reference Sources
+# External References (Legacy)
 localsend-main/
 opendrop-master/
 kdeconnect-kde-master/
@@ -48,6 +67,5 @@ scrcpy-gui-main/
 open-quickshare-main/
 styleguide-gh-pages/
 nearby-main/
-
-# logs
-log/
+app/
+task.md

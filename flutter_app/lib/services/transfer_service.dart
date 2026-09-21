@@ -95,30 +95,34 @@ class TransferService {
             final remainingBytes = total - sent;
             final etaSeconds = speedBytesPerSec > 0 ? (remainingBytes / speedBytesPerSec).round() : 0;
 
-            _statusController.add(TransferStatus(
-              sessionId: sessionId,
-              fileName: file.fileName,
-              receivedBytes: sent,
-              totalBytes: total,
-              speedMBps: speedMBps,
-              etaSeconds: etaSeconds,
-              isCompleted: sent >= total,
-            ));
+            if (!_statusController.isClosed) {
+              _statusController.add(TransferStatus(
+                sessionId: sessionId,
+                fileName: file.fileName,
+                receivedBytes: sent,
+                totalBytes: total,
+                speedMBps: speedMBps,
+                etaSeconds: etaSeconds,
+                isCompleted: sent >= total,
+              ));
+            }
           },
         );
       }
 
       return true;
     } catch (e) {
-      _statusController.add(TransferStatus(
-        sessionId: sessionId,
-        fileName: files.isNotEmpty ? files.first.fileName : 'Error',
-        receivedBytes: 0,
-        totalBytes: 0,
-        speedMBps: 0.0,
-        etaSeconds: 0,
-        isFailed: true,
-      ));
+      if (!_statusController.isClosed) {
+        _statusController.add(TransferStatus(
+          sessionId: sessionId,
+          fileName: files.isNotEmpty ? files.first.fileName : 'Error',
+          receivedBytes: 0,
+          totalBytes: 0,
+          speedMBps: 0.0,
+          etaSeconds: 0,
+          isFailed: true,
+        ));
+      }
       return false;
     }
   }

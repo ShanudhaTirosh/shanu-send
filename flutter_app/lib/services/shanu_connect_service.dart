@@ -24,7 +24,9 @@ class ShanuConnectService {
             final message = utf8.decode(datagram.data);
             try {
               final Map<String, dynamic> packet = jsonDecode(message);
-              _packetController.add(packet);
+              if (!_packetController.isClosed) {
+                _packetController.add(packet);
+              }
             } catch (e) {
               debugPrint('ShanuConnect packet parse error: $e');
             }
