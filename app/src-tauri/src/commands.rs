@@ -614,7 +614,65 @@ pub async fn shanuconnect_request_sftp(
     Ok(())
 }
 
-// --- QuickShare & WebDrop Commands ---
+#[tauri::command]
+pub async fn send_file_airdrop(
+    state: State<'_, AppState>,
+    target_ip: String,
+    target_port: Option<u16>,
+    file_path: String,
+) -> Result<bool, String> {
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        return Err("File path does not exist".to_string());
+    }
+    let file_data = std::fs::read(path).map_err(|e| e.to_string())?;
+    let file_name = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "airdrop_file.bin".to_string());
+    let port = target_port.unwrap_or(shanusend_core::airdrop::AIRDROP_PORT);
+    let device_name = &state.server.device.alias;
+
+    shanusend_core::airdrop::send_file_to_airdrop(
+        &target_ip,
+        port,
+        device_name,
+        &file_name,
+        &file_data,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn send_file_quickshare(
+    state: State<'_, AppState>,
+    target_ip: String,
+    target_port: Option<u16>,
+    file_path: String,
+) -> Result<bool, String> {
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        return Err("File path does not exist".to_string());
+    }
+    let file_data = std::fs::read(path).map_err(|e| e.to_string())?;
+    let file_name = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "quickshare_file.bin".to_string());
+    let port = target_port.unwrap_or(shanusend_core::quickshare::QUICKSHARE_PORT);
+    let device_name = &state.server.device.alias;
+
+    shanusend_core::quickshare::send_file_to_quickshare(
+        &target_ip,
+        port,
+        device_name,
+        &file_name,
+        &file_data,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn quickshare_generate_ukey2_pin(state: State<'_, AppState>) -> Result<String, String> {

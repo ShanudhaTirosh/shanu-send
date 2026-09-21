@@ -562,6 +562,20 @@ export async function scrcpyAdbShell(deviceId: string | undefined, command: stri
   return `Executed shell command ${command}`;
 }
 
+export async function sendFileAirDrop(targetIp: string, filePath: string, targetPort?: number): Promise<boolean> {
+  if (isTauri) {
+    return realInvoke<boolean>("send_file_airdrop", { targetIp, targetPort, filePath });
+  }
+  return true;
+}
+
+export async function sendFileQuickShare(targetIp: string, filePath: string, targetPort?: number): Promise<boolean> {
+  if (isTauri) {
+    return realInvoke<boolean>("send_file_quickshare", { targetIp, targetPort, filePath });
+  }
+  return true;
+}
+
 export async function quickshareGenerateUkey2Pin(): Promise<string> {
   if (isTauri) return realInvoke<string>("quickshare_generate_ukey2_pin");
   return "8492";

@@ -251,6 +251,8 @@ pub fn build_router(state: Arc<ServerState>) -> Router {
         .route("/api/webdrop/download/:filename", get(webdrop_download_file_handler))
         .route("/api/webdrop/upload", post(webdrop_upload_handler))
         .route("/api/webdrop/text", post(webdrop_text_handler))
+        .merge(crate::airdrop::build_airdrop_router())
+        .merge(crate::quickshare::build_quickshare_router())
         .with_state(state)
 }
 

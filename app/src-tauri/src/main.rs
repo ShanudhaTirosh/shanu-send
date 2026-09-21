@@ -62,6 +62,25 @@ fn main() {
             ));
             tauri::async_runtime::spawn(kde_engine.clone().start_listeners());
 
+            // --- AirDrop & Quick Share Responders & Dedicated Listeners ----
+            shanusend_core::airdrop::start_airdrop_mdns_responder(alias.clone());
+            let airdrop_router = shanusend_core::airdrop::build_airdrop_router();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", shanusend_core::airdrop::AIRDROP_PORT)).await {
+                    info!("AirDrop dedicated HTTP server listening on 0.0.0.0:{}", shanusend_core::airdrop::AIRDROP_PORT);
+                    let _ = axum::serve(listener, airdrop_router).await;
+                }
+            });
+
+            shanusend_core::quickshare::start_quickshare_mdns_responder(alias.clone());
+            let quickshare_router = shanusend_core::quickshare::build_quickshare_router();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", shanusend_core::quickshare::QUICKSHARE_PORT)).await {
+                    info!("Quick Share dedicated HTTP server listening on 0.0.0.0:{}", shanusend_core::quickshare::QUICKSHARE_PORT);
+                    let _ = axum::serve(listener, quickshare_router).await;
+                }
+            });
+
             app.manage(AppState {
                 server: server_state.clone(),
                 port,
@@ -286,6 +305,8 @@ fn main() {
             commands::scrcpy_adb_send_keyevent,
             commands::scrcpy_adb_shell,
             commands::quickshare_generate_ukey2_pin,
+            commands::send_file_airdrop,
+            commands::send_file_quickshare,
             commands::webdrop_share_files,
             commands::webdrop_get_shared_files,
             commands::webdrop_clear_shared_files,
