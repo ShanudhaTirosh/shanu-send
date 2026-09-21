@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'theme/app_theme.dart';
 import 'views/home_view.dart';
 
 void main() {
@@ -14,18 +15,9 @@ class ShanuSendApp extends StatelessWidget {
     return MaterialApp(
       title: 'ShanuSend',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0B0F19),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF38BDF8),
-          secondary: Color(0xFF6366F1),
-          surface: Color(0xFF161E2E),
-        ),
-        fontFamily: 'Roboto',
-        useMaterial3: true,
-      ),
+      themeMode: ThemeMode.system,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       home: const HomeView(),
     );
   }

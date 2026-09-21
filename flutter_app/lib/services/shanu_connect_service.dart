@@ -219,6 +219,18 @@ class ShanuConnectService {
     sendPacket(packet, targetIp);
   }
 
+  void sendPairing({required bool pair, String? targetIp}) {
+    final packet = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'type': 'shanuconnect.pair',
+      'body': {
+        'pair': pair,
+        'deviceId': 'mobile-remote-id',
+      }
+    };
+    sendPacket(packet, targetIp);
+  }
+
   void stop() {
     _udpSocket?.close();
     _packetController.close();

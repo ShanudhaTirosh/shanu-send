@@ -437,6 +437,7 @@ pub struct ShanuConnectEngine {
     device_id: String,
     device_name: String,
     devices: Arc<RwLock<HashMap<String, ShanuConnectDeviceState>>>,
+    pending_pins: Arc<RwLock<HashMap<String, String>>>,
     event_callback: Option<ShanuEventCallback>,
 }
 
@@ -449,6 +450,7 @@ impl ShanuConnectEngine {
             device_id,
             device_name: device_name.into(),
             devices: Arc::new(RwLock::new(HashMap::new())),
+            pending_pins: Arc::new(RwLock::new(HashMap::new())),
             event_callback: None,
         }
     }
@@ -459,8 +461,26 @@ impl ShanuConnectEngine {
             device_id,
             device_name: device_name.into(),
             devices: Arc::new(RwLock::new(HashMap::new())),
+            pending_pins: Arc::new(RwLock::new(HashMap::new())),
             event_callback: Some(callback),
         }
+    }
+
+    pub async fn approve_pairing(&self, target_device_id: &str, entered_pin: &str) -> bool {
+        let mut pins = self.pending_pins.write().await;
+        if let Some(expected_pin) = pins.get(target_device_id) {
+            if expected_pin == entered_pin {
+                pins.remove(target_device_id);
+                let mut devices = self.devices.write().await;
+                if let Some(device) = devices.get_mut(target_device_id) {
+                    device.is_paired = true;
+                    info!("Successfully paired device '{}' with PIN verification", target_device_id);
+                    return true;
+                }
+            }
+        }
+        warn!("Pairing approval failed for device '{}': invalid PIN", target_device_id);
+        false
     }
 
     pub fn build_identity_packet(&self) -> ShanuPacket {
@@ -549,20 +569,47 @@ impl ShanuConnectEngine {
 
         if p_type == "shanuconnect.pair" || p_type == "kdeconnect.pair" {
             if let Ok(pair) = serde_json::from_value::<ShanuPair>(packet.body.clone()) {
-                info!("ShanuConnect pairing status update: pair={}", pair.pair);
-                // Mark devices as paired/unpaired when pair packet is processed
-                let mut devices = self.devices.write().await;
-                for state in devices.values_mut() {
-                    state.is_paired = pair.pair;
+                let sender_id = packet.body.get("deviceId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown_peer")
+                    .to_string();
+
+                if pair.pair {
+                    // Generate 6-digit numeric SAS PIN code
+                    let pin_code = format!("{:06}", rand::random::<u32>() % 1_000_000);
+                    self.pending_pins.write().await.insert(sender_id.clone(), pin_code.clone());
+                    info!("Generated ShanuConnect SAS PIN '{}' for device '{}'", pin_code, sender_id);
+                    
+                    if let Some(cb) = &self.event_callback {
+                        cb(
+                            "shanuconnect.pair.request".to_string(),
+                            serde_json::json!({
+                                "deviceId": sender_id,
+                                "pin": pin_code
+                            }),
+                        );
+                    }
+
+                    return Some(ShanuPacket::new(
+                        "shanuconnect.pair",
+                        serde_json::json!({ "pair": false, "pending": true, "pin": pin_code }),
+                    ));
+                } else {
+                    // Unpair device
+                    let mut devices = self.devices.write().await;
+                    if let Some(dev) = devices.get_mut(&sender_id) {
+                        dev.is_paired = false;
+                    }
+                    self.pending_pins.write().await.remove(&sender_id);
+                    return Some(ShanuPacket::new(
+                        "shanuconnect.pair",
+                        serde_json::json!({ "pair": false }),
+                    ));
                 }
             }
-            return Some(ShanuPacket::new(
-                "shanuconnect.pair",
-                serde_json::json!({ "pair": true }),
-            ));
         }
 
-        // --- PAIRING CHECK FOR SENSITIVE COMMANDS ---
+        // --- PER-DEVICE PAIRING CHECK FOR SENSITIVE COMMANDS ---
         let sensitive_types = [
             "shanuconnect.runcommand", "kdeconnect.runcommand",
             "shanuconnect.lockdevice", "kdeconnect.lockdevice",
@@ -574,14 +621,70 @@ impl ShanuConnectEngine {
         ];
 
         if sensitive_types.contains(&p_type) {
-            let has_paired = {
+            let sender_id = packet.body.get("senderDeviceId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            
+            let is_device_paired = {
                 let devices = self.devices.read().await;
-                devices.values().any(|d| d.is_paired)
+                if !sender_id.is_empty() {
+                    devices.get(sender_id).map(|d| d.is_paired).unwrap_or(false)
+                } else {
+                    devices.values().any(|d| d.is_paired)
+                }
             };
-            if !has_paired {
-                warn!("Blocked unauthenticated ShanuConnect sensitive packet '{}' from unpaired client!", p_type);
+
+            if !is_device_paired {
+                warn!("Blocked unauthenticated ShanuConnect sensitive packet '{}' from unpaired peer!", p_type);
                 return None;
             }
+        }
+
+        if p_type == "shanuconnect.mousepad" || p_type == "kdeconnect.mousepad" {
+            if let Ok(mouse) = serde_json::from_value::<ShanuMousepadPayload>(packet.body) {
+                use enigo::{Axis, Button, Coordinate, Direction, Enigo, Mouse, Settings};
+                if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
+                    if let (Some(dx), Some(dy)) = (mouse.dx, mouse.dy) {
+                        let _ = enigo.move_mouse(dx as i32, dy as i32, Coordinate::Rel);
+                    }
+                    if mouse.singleclick == Some(true) {
+                        let _ = enigo.button(Button::Left, Direction::Click);
+                    }
+                    if mouse.rightclick == Some(true) {
+                        let _ = enigo.button(Button::Right, Direction::Click);
+                    }
+                    if mouse.middleclick == Some(true) {
+                        let _ = enigo.button(Button::Middle, Direction::Click);
+                    }
+                    if mouse.scroll == Some(true) {
+                        if let Some(dy) = mouse.dy {
+                            let _ = enigo.scroll(dy as i32, Axis::Vertical);
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+
+        if p_type == "shanuconnect.remotekeyboard" || p_type == "kdeconnect.remotekeyboard" {
+            if let Ok(mouse) = serde_json::from_value::<ShanuMousepadPayload>(packet.body) {
+                use enigo::{Enigo, Key, Keyboard, Settings};
+                if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
+                    if let Some(k) = mouse.key {
+                        let _ = enigo.text(&k);
+                    }
+                    if let Some(special) = mouse.special_key {
+                        match special {
+                            1 => { let _ = enigo.key(Key::Return, enigo::Direction::Click); }
+                            2 => { let _ = enigo.key(Key::Backspace, enigo::Direction::Click); }
+                            3 => { let _ = enigo.key(Key::Tab, enigo::Direction::Click); }
+                            4 => { let _ = enigo.key(Key::Escape, enigo::Direction::Click); }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            return None;
         }
 
         if p_type == "shanuconnect.battery" || p_type == "kdeconnect.battery" {
@@ -598,27 +701,6 @@ impl ShanuConnectEngine {
             return None;
         }
 
-        if p_type == "shanuconnect.notifications.reply" || p_type == "kdeconnect.notifications.reply" {
-            if let Ok(reply) = serde_json::from_value::<ShanuNotificationReplyPayload>(packet.body) {
-                info!("ShanuConnect Notification Reply sent for id {}: {}", reply.notification_id, reply.reply_message);
-            }
-            return None;
-        }
-
-        if p_type == "shanuconnect.telephony" || p_type == "kdeconnect.telephony" {
-            if let Ok(telephony) = serde_json::from_value::<ShanuTelephonyPayload>(packet.body) {
-                info!("ShanuConnect Telephony Event: {} ({:?})", telephony.event, telephony.contact_name);
-            }
-            return None;
-        }
-
-        if p_type == "shanuconnect.telephony.action" || p_type == "kdeconnect.telephony.action" {
-            if let Ok(call_action) = serde_json::from_value::<ShanuCallActionPayload>(packet.body) {
-                info!("ShanuConnect Call Action: {} on {:?}", call_action.action, call_action.phone_number);
-            }
-            return None;
-        }
-
         if p_type == "shanuconnect.mpris" || p_type == "kdeconnect.mpris" {
             if let Ok(mpris) = serde_json::from_value::<ShanuMprisPayload>(packet.body) {
                 info!("ShanuConnect MPRIS update: player={}, action={:?}", mpris.player, mpris.action);
@@ -628,7 +710,7 @@ impl ShanuConnectEngine {
 
         if p_type == "shanuconnect.systemvolume" || p_type == "kdeconnect.systemvolume" {
             if let Ok(vol) = serde_json::from_value::<ShanuSystemVolumePayload>(packet.body) {
-                info!("ShanuConnect System Volume: {} (muted: {})", vol.volume, vol.muted);
+                info!("ShanuConnect System Volume update: {} (muted: {})", vol.volume, vol.muted);
             }
             return None;
         }
@@ -636,6 +718,14 @@ impl ShanuConnectEngine {
         if p_type == "shanuconnect.lockdevice" || p_type == "kdeconnect.lockdevice" {
             if let Ok(lock) = serde_json::from_value::<ShanuLockDevicePayload>(packet.body) {
                 info!("ShanuConnect Lock Device event: locked={}", lock.is_locked);
+                if lock.is_locked {
+                    #[cfg(target_os = "windows")]
+                    {
+                        let _ = std::process::Command::new("rundll32.exe")
+                            .args(["user32.dll,LockWorkStation"])
+                            .spawn();
+                    }
+                }
             }
             return None;
         }
@@ -666,6 +756,9 @@ impl ShanuConnectEngine {
 
         if p_type == "shanuconnect.findmyphone" || p_type == "kdeconnect.findmyphone" {
             info!("ShanuConnect FIND MY DEVICE triggered!");
+            if let Some(cb) = &self.event_callback {
+                cb("shanuconnect.findmyphone.ring".to_string(), serde_json::json!({"ring": true}));
+            }
             return Some(ShanuPacket::new(
                 "shanuconnect.findmyphone",
                 serde_json::json!({ "ring": true }),

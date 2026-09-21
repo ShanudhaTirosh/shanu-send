@@ -1,0 +1,48 @@
+{
+  "name": "ShanuSend Design System Tokens",
+  "version": "1.0.0",
+  "color": {
+    "dark": {
+      "background": "#0B0F19",
+      "surface": "#161E2E",
+      "surfaceBorder": "#283548",
+      "primary": "#38BDF8",
+      "secondary": "#6366F1",
+      "accent": "#10B981",
+      "textPrimary": "#F8FAFC",
+      "textSecondary": "#94A3B8",
+      "textMuted": "#64748B",
+      "error": "#EF4444"
+    },
+    "light": {
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "surfaceBorder": "#E2E8F0",
+      "primary": "#0284C7",
+      "secondary": "#4F46E5",
+      "accent": "#059669",
+      "textPrimary": "#0F172A",
+      "textSecondary": "#475569",
+      "textMuted": "#94A3B8",
+      "error": "#DC2626"
+    }
+  },
+  "radii": {
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 20,
+    "full": 9999
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32
+  },
+  "elevation": {
+    "card": 2,
+    "modal": 8
+  }
+}

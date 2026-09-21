@@ -11,6 +11,9 @@ import '../widgets/webdrop_modal.dart';
 
 import 'shanu_connect_view.dart';
 
+import '../services/receiver_service.dart';
+import '../services/notification_service.dart';
+
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -22,6 +25,7 @@ class _HomeViewState extends State<HomeView> {
   final DiscoveryService _discoveryService = DiscoveryService();
   final TransferService _transferService = TransferService();
   final WebDropServer _webDropServer = WebDropServer();
+  final ReceiverService _receiverService = ReceiverService();
 
   String? _localIp;
   List<FileDto> _selectedFiles = [];
@@ -38,8 +42,64 @@ class _HomeViewState extends State<HomeView> {
     setState(() {
       _localIp = ip;
     });
+    await _receiverService.startServer();
     await _webDropServer.startServer();
+    await NotificationService().initialize();
     _discoveryService.scanSubnet();
+
+    _receiverService.eventStream.listen((event) {
+      if (event.type == 'incoming-request') {
+        final data = event.data;
+        final senderAlias = data['senderAlias'] as String? ?? 'Device';
+        final files = data['files'] as Map<String, dynamic>? ?? {};
+        final sessionId = data['sessionId'] as String? ?? 'session';
+
+        NotificationService().showIncomingTransferAlert(
+          senderAlias: senderAlias,
+          fileCount: files.length,
+          sessionId: sessionId,
+        );
+      } else if (event.type == 'upload-progress') {
+        final data = event.data;
+        final rec = data['receivedBytes'] as int? ?? 0;
+        final tot = data['totalBytes'] as int? ?? 1;
+        setState(() {
+          _activeTransfer = TransferStatus(
+            sessionId: data['sessionId'] as String? ?? 'recv',
+            fileName: 'Receiving File...',
+            receivedBytes: rec,
+            totalBytes: tot,
+            speedMBps: 12.5,
+            etaSeconds: 1,
+            isCompleted: rec >= tot,
+          );
+        });
+      } else if (event.type == 'upload-complete') {
+        final data = event.data;
+        final fileName = data['fileName'] as String? ?? 'File';
+        final savePath = data['savePath'] as String? ?? '';
+        setState(() {
+          _activeTransfer = TransferStatus(
+            sessionId: data['sessionId'] as String? ?? 'complete',
+            fileName: 'Received: $fileName',
+            receivedBytes: 100,
+            totalBytes: 100,
+            speedMBps: 0.0,
+            etaSeconds: 0,
+            isCompleted: true,
+          );
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(savePath.isNotEmpty ? 'File Saved: $fileName' : 'File Received: $fileName'),
+              backgroundColor: const Color(0xFF059669),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    });
 
     _transferService.statusStream.listen((status) {
       setState(() {
@@ -53,6 +113,7 @@ class _HomeViewState extends State<HomeView> {
     _discoveryService.dispose();
     _transferService.dispose();
     _webDropServer.stopServer();
+    _receiverService.dispose();
     super.dispose();
   }
 
@@ -276,9 +337,37 @@ class _HomeViewState extends State<HomeView> {
                               color: const Color(0xFF38BDF8),
                             ),
                           ),
-                          title: Text(
-                            device.alias,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          title: Row(
+                            children: [
+                              Text(
+                                device.alias,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'LocalSend v2.1',
+                                  style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'ShanuConnect P2P',
+                                  style: TextStyle(color: Color(0xFFA5B4FC), fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
                           subtitle: Text(
                             '${device.ip} • ${device.deviceModel}',

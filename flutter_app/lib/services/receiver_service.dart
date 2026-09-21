@@ -34,15 +34,30 @@ class ReceiverService {
   final _eventController = StreamController<ReceiverEvent>.broadcast();
   final Map<String, ReceiverSession> _sessions = {};
   
-  String alias = 'ShanuSend Phone';
-  String fingerprint = 'shanu_mobile_fp';
+  String alias = 'ShanuSend Mobile';
+  String fingerprint = '';
   int port = 53317;
 
   Stream<ReceiverEvent> get eventStream => _eventController.stream;
   bool get isRunning => _server != null;
 
+  Future<void> _initFingerprint() async {
+    if (fingerprint.isEmpty) {
+      final docDir = await getApplicationDocumentsDirectory();
+      final fpFile = File('${docDir.path}/.shanu_fingerprint');
+      if (await fpFile.exists()) {
+        fingerprint = await fpFile.readAsString();
+      } else {
+        final newFp = 'shanu_fp_${const Uuid().v4().replaceAll("-", "").substring(0, 16)}';
+        await fpFile.writeAsString(newFp);
+        fingerprint = newFp;
+      }
+    }
+  }
+
   Future<void> startServer({int port = 53317, String? customAlias}) async {
     if (_server != null) return;
+    await _initFingerprint();
     this.port = port;
     if (customAlias != null && customAlias.isNotEmpty) {
       alias = customAlias;
@@ -153,8 +168,21 @@ class ReceiverService {
 
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/$fileName';
-      final file = File(savePath);
+      var savePath = '${dir.path}/$fileName';
+      var file = File(savePath);
+      int counter = 1;
+      while (await file.exists()) {
+        final dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex != -1) {
+          final nameNoExt = fileName.substring(0, dotIndex);
+          final ext = fileName.substring(dotIndex);
+          savePath = '${dir.path}/${nameNoExt}_($counter)$ext';
+        } else {
+          savePath = '${dir.path}/${fileName}_($counter)';
+        }
+        file = File(savePath);
+        counter++;
+      }
       final sink = file.openWrite();
 
       int receivedBytes = 0;

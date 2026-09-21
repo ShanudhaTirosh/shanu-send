@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
@@ -49,16 +50,28 @@ class TransferService {
         return false;
       }
 
-      final responseData = Map<String, dynamic>.from(prepareResponse.data);
-      final tokens = Map<String, String>.from(responseData['files'] ?? {});
+      final Map<String, dynamic> responseData = prepareResponse.data is String 
+          ? jsonDecode(prepareResponse.data) 
+          : Map<String, dynamic>.from(prepareResponse.data);
 
-      // 2. Stream files chunked with live speed meter
+      final filesObj = responseData['files'];
+      final tokens = <String, String>{};
+      if (filesObj is Map) {
+        filesObj.forEach((k, v) {
+          tokens[k.toString()] = v.toString();
+        });
+      }
+
+      // 2. Stream files with live speed meter
       for (var file in files) {
         final token = tokens[file.id];
         if (token == null || file.path == null) continue;
 
         final diskFile = File(file.path!);
+        if (!await diskFile.exists()) continue;
+
         final fileSize = await diskFile.length();
+        final bytes = await diskFile.readAsBytes();
         final startTime = DateTime.now();
 
         await _dio.post(
@@ -68,7 +81,7 @@ class TransferService {
             'fileId': file.id,
             'token': token,
           },
-          data: diskFile.openRead(), // Zero-copy chunked byte stream
+          data: Stream.fromIterable([bytes]),
           options: Options(
             headers: {
               Headers.contentLengthHeader: fileSize,

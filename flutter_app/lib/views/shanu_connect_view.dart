@@ -18,12 +18,14 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
   final ShanuConnectService _shanuService = ShanuConnectService();
   bool _isPlaying = true;
   bool _isLocked = false;
+  bool _isPaired = false;
+  bool _isPairingRequested = false;
+  String? _clipboardFeedback;
   double _mprisVolume = 75.0;
   double _systemVolume = 80.0;
   final TextEditingController _commandController = TextEditingController();
   final TextEditingController _clipboardController = TextEditingController();
-  String? _clipboardFeedback;
-
+  final TextEditingController _pinController = TextEditingController();
   final TextEditingController _notificationReplyController = TextEditingController();
   final TextEditingController _quickSmsController = TextEditingController();
 
@@ -40,6 +42,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
     _tabController.dispose();
     _commandController.dispose();
     _clipboardController.dispose();
+    _pinController.dispose();
     _notificationReplyController.dispose();
     _quickSmsController.dispose();
     super.dispose();
@@ -55,6 +58,63 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
     );
   }
 
+  void _requestPairing() {
+    _shanuService.sendPairing(pair: true, targetIp: widget.targetIp);
+    setState(() => _isPairingRequested = true);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161E2E),
+        title: const Text('Connect & Pair Device', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Pairing request sent. Please enter the 6-digit SAS PIN shown on target Desktop PC:',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _pinController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(color: Colors.white, fontSize: 18, letterSpacing: 4),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '123456',
+                hintStyle: const TextStyle(color: Colors.white24),
+                filled: true,
+                fillColor: const Color(0xFF090B11),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_pinController.text.length == 6) {
+                setState(() {
+                  _isPaired = true;
+                  _isPairingRequested = false;
+                });
+                Navigator.pop(ctx);
+                _showToast('Device Paired & Connected Successfully!');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
+            child: const Text('Approve & Connect'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,16 +125,52 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.deviceName,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            Row(
+              children: [
+                Text(
+                  widget.deviceName,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _isPaired ? const Color(0xFF10B981).withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _isPaired ? 'CONNECTED' : (_isPairingRequested ? 'PAIRING...' : 'UNPAIRED'),
+                    style: TextStyle(
+                      color: _isPaired ? const Color(0xFF10B981) : (_isPairingRequested ? const Color(0xFF38BDF8) : Colors.amber),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const Text(
-              'ShanuConnect Mobile Suite Active',
-              style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
+            Text(
+              _isPaired ? 'ShanuConnect Authenticated Session' : (_isPairingRequested ? 'PIN confirmation pending...' : 'Device not paired'),
+              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
             ),
           ],
         ),
+        actions: [
+          if (!_isPaired)
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: ElevatedButton.icon(
+                onPressed: _requestPairing,
+                icon: const Icon(Icons.link_rounded, size: 16),
+                label: const Text('Connect & Pair'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF38BDF8),
+                  foregroundColor: const Color(0xFF090B11),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,

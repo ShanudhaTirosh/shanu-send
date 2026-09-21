@@ -17,6 +17,7 @@ pub mod client;
 pub mod clipboard;
 pub mod crypto;
 pub mod discovery;
+pub mod ffi;
 pub mod history;
 pub mod shanuconnect;
 pub mod kdeconnect {
