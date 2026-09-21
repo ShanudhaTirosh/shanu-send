@@ -156,56 +156,54 @@ pub fn build_quickshare_ble_payload(device_name: &str) -> Vec<u8> {
 }
 
 /// Starts an mDNS UDP responder on 224.0.0.251:5353 to answer Google Quick Share / Nearby Share PTR queries.
-pub fn start_quickshare_mdns_responder(device_name: String) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let multicast_addr = std::net::Ipv4Addr::new(224, 0, 0, 251);
-        let socket = match socket2::Socket::new(
-            socket2::Domain::IPV4,
-            socket2::Type::DGRAM,
-            Some(socket2::Protocol::UDP),
-        ) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!("Quick Share mDNS responder: socket creation failed: {e}");
-                return;
-            }
-        };
-
-        let _ = socket.set_reuse_address(true);
-        let _ = socket.set_nonblocking(true);
-        let bind_addr: std::net::SocketAddr =
-            std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 5353).into();
-
-        if let Err(e) = socket.bind(&bind_addr.into()) {
-            tracing::warn!("Quick Share mDNS responder: port 5353 bind failed ({e}); skipping listener");
+pub async fn start_quickshare_mdns_responder(device_name: String) {
+    let multicast_addr = std::net::Ipv4Addr::new(224, 0, 0, 251);
+    let socket = match socket2::Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("Quick Share mDNS responder: socket creation failed: {e}");
             return;
         }
+    };
 
-        if let Err(e) = socket.join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED) {
-            tracing::warn!("Quick Share mDNS responder: join multicast failed ({e}); skipping listener");
+    let _ = socket.set_reuse_address(true);
+    let _ = socket.set_nonblocking(true);
+    let bind_addr: std::net::SocketAddr =
+        std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 5353).into();
+
+    if let Err(e) = socket.bind(&bind_addr.into()) {
+        tracing::warn!("Quick Share mDNS responder: port 5353 bind failed ({e}); skipping listener");
+        return;
+    }
+
+    if let Err(e) = socket.join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED) {
+        tracing::warn!("Quick Share mDNS responder: join multicast failed ({e}); skipping listener");
+        return;
+    }
+
+    let std_socket: std::net::UdpSocket = socket.into();
+    let tokio_socket = match tokio::net::UdpSocket::from_std(std_socket) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("Quick Share mDNS responder: failed to register socket with tokio: {e}");
             return;
         }
+    };
 
-        let std_socket: std::net::UdpSocket = socket.into();
-        let tokio_socket = match tokio::net::UdpSocket::from_std(std_socket) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!("Quick Share mDNS responder: failed to register socket with tokio: {e}");
-                return;
-            }
-        };
-
-        let mut buf = [0u8; 1024];
-        while let Ok((len, from)) = tokio_socket.recv_from(&mut buf).await {
-            let req_str = String::from_utf8_lossy(&buf[..len]);
-            if req_str.contains("FC92") || req_str.contains("nearby") {
-                let resp = format!(
-                    "PTR ShanuSend-{device_name}._FC92._tcp.local. port {}\r\n",
-                    QUICKSHARE_PORT
-                );
-                let _ = tokio_socket.send_to(resp.as_bytes(), from).await;
-            }
+    let mut buf = [0u8; 1024];
+    while let Ok((len, from)) = tokio_socket.recv_from(&mut buf).await {
+        let req_str = String::from_utf8_lossy(&buf[..len]);
+        if req_str.contains("FC92") || req_str.contains("nearby") {
+            let resp = format!(
+                "PTR ShanuSend-{device_name}._FC92._tcp.local. port {}\r\n",
+                QUICKSHARE_PORT
+            );
+            let _ = tokio_socket.send_to(resp.as_bytes(), from).await;
         }
-    })
+    }
 }
 

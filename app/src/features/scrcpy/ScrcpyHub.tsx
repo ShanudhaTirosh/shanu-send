@@ -7,7 +7,6 @@ import LogPanel from './components/LogPanel';
 import Header from './components/Header';
 import SessionBehavior from './components/SessionBehavior';
 import ShortcutsPanel from './components/ShortcutsPanel';
-import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingModal from './components/OnboardingModal';
 import ThemedModal from './components/ThemedModal';
@@ -288,19 +287,9 @@ function ScrcpyMainContent() {
   return (
     <ErrorBoundary>
       <div
-        className="min-h-screen font-sans selection:bg-primary selection:text-on-primary overflow-hidden flex flex-col transition-opacity duration-1000 ease-in-out"
-        style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-base)', opacity: 0, animation: 'fadeIn 0.8s ease-out forwards' }}
+        className="w-full h-full font-sans selection:bg-primary selection:text-on-primary overflow-hidden flex flex-col transition-opacity duration-700 ease-in-out bg-slate-950 text-slate-100"
       >
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-        <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0"></div>
-        <div className="fixed top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent pointer-events-none z-0"></div>
-
-        <div className="relative z-10 flex flex-col h-screen transition-all duration-700">
+        <div className="relative z-10 flex flex-col flex-1 h-full overflow-hidden">
           <Header
             onThemeChange={setTheme}
             currentTheme={theme}
@@ -315,8 +304,8 @@ function ScrcpyMainContent() {
             version={appVersion}
           />
 
-          <div className="flex-1 overflow-y-auto flex flex-col pt-6 custom-scrollbar">
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 px-6 pb-6">
+          <div className="flex-1 overflow-y-auto flex flex-col pt-4 custom-scrollbar">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 px-4 pb-4">
               <div className="lg:col-span-3 flex flex-col">
                 <div className="transition-all duration-700">
                   <Sidebar
@@ -339,7 +328,7 @@ function ScrcpyMainContent() {
                 </div>
               </div>
 
-              <div className="lg:col-span-6 flex flex-col gap-6 relative z-20">
+              <div className="lg:col-span-6 flex flex-col gap-5 relative z-20">
                 <div className="relative z-30">
                   <ControlPanel
                     config={config}
@@ -366,13 +355,11 @@ function ScrcpyMainContent() {
                 </div>
               </div>
 
-              <div className="lg:col-span-3 flex flex-col gap-6">
+              <div className="lg:col-span-3 flex flex-col gap-5">
                 <SessionBehavior config={config} setConfig={setConfig} />
                 <ShortcutsPanel />
               </div>
             </div>
-
-            <Footer version={appVersion} />
           </div>
         </div>
 

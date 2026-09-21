@@ -64,7 +64,10 @@ fn main() {
             tauri::async_runtime::spawn(kde_engine.clone().start_listeners());
 
             // --- AirDrop & Quick Share Responders & Dedicated Listeners ----
-            shanusend_core::airdrop::start_airdrop_mdns_responder(alias.clone());
+            let airdrop_alias = alias.clone();
+            tauri::async_runtime::spawn(async move {
+                shanusend_core::airdrop::start_airdrop_mdns_responder(airdrop_alias).await;
+            });
             let airdrop_router = shanusend_core::airdrop::build_airdrop_router();
             tauri::async_runtime::spawn(async move {
                 if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", shanusend_core::airdrop::AIRDROP_PORT)).await {
@@ -73,7 +76,10 @@ fn main() {
                 }
             });
 
-            shanusend_core::quickshare::start_quickshare_mdns_responder(alias.clone());
+            let quickshare_alias = alias.clone();
+            tauri::async_runtime::spawn(async move {
+                shanusend_core::quickshare::start_quickshare_mdns_responder(quickshare_alias).await;
+            });
             let quickshare_router = shanusend_core::quickshare::build_quickshare_router();
             tauri::async_runtime::spawn(async move {
                 if let Ok(listener) = tokio::net::TcpListener::bind(("0.0.0.0", shanusend_core::quickshare::QUICKSHARE_PORT)).await {

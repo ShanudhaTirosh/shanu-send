@@ -245,17 +245,17 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
   };
 
   return (
-    <div className="flex h-full w-full flex-col rounded-2xl border border-white/10 bg-[#090b11] p-6 text-slate-200 shadow-xl backdrop-blur-xl">
+    <div className="flex h-full w-full flex-col rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-200 shadow-xl">
       {/* Header Info & Status */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400">
             <Sparkles className="h-6 w-6 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-white tracking-wide">
-                {selectedDevice ? selectedDevice.alias : 'ShanuConnect Phone Link Suite'}
+                {selectedDevice ? selectedDevice.alias : 'ShanuConnect Suite'}
               </h2>
               {isConnected ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-0.5 text-xs font-semibold text-emerald-400">
@@ -270,15 +270,15 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Phone Link Suite &middot; Gallery, Remote Files, Inline Replies & Calls
+              Phone Link Suite &middot; Remote Files (SFTP), Media Control, Calls & Notifications
             </p>
           </div>
         </div>
 
         {/* Action Header Pill */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs">
-            <Battery className="h-4 w-4 text-cyan-400" />
+          <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs">
+            <Battery className="h-4 w-4 text-blue-400" />
             <span className="font-semibold text-slate-200">
               {batteryLevel !== null ? `${batteryLevel}%` : 'N/A'} {isCharging && '⚡'}
             </span>
@@ -289,7 +289,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
             className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
               isRinging
                 ? 'animate-bounce border-pink-500/50 bg-pink-500/20 text-pink-300'
-                : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:bg-slate-800'
             }`}
           >
             <Bell size={14} className={isRinging ? 'text-pink-400' : 'text-slate-400'} />
@@ -301,7 +301,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
             className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
               isDeviceLocked
                 ? 'border-red-500/50 bg-red-500/20 text-red-300'
-                : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:bg-slate-800'
             }`}
           >
             <Lock size={14} className={isDeviceLocked ? 'text-red-400' : 'text-slate-400'} />
@@ -339,7 +339,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
 
       {/* Transfer Notification Toast */}
       {transferToast && (
-        <div className="mt-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 animate-fade-in">
+        <div className="mt-3 rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-xs font-semibold text-blue-300 animate-fade-in">
           {transferToast}
         </div>
       )}
@@ -350,9 +350,9 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
           <div className="flex items-center gap-3">
             <ShieldCheck size={18} className="text-amber-400" />
             <div>
-              <p className="font-bold">No ShanuConnect Remote Device Selected</p>
+              <p className="font-bold">No Remote Phone Connected</p>
               <p className="text-[11px] text-amber-300/80">
-                To control remote devices, select a discovered device from the right sidebar or open ShanuSend on your phone.
+                To control remote devices, select a discovered device from Nearby Devices tab or open ShanuSend on your mobile device.
               </p>
             </div>
           </div>
@@ -373,7 +373,7 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
       )}
 
       {/* Sub Navigation Tabs */}
-      <div className="mt-4 flex gap-2 border-b border-white/10 pb-3 overflow-x-auto">
+      <div className="mt-4 flex gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
         {[
           { id: 'notifications', label: 'Notifications Stream', icon: Bell },
           { id: 'calls', label: 'Calls & Telephony', icon: Phone },
@@ -391,11 +391,11 @@ export const ShanuConnectPanel: React.FC<ShanuConnectPanelProps> = ({
               onClick={() => setActiveTab(tab.id as TabType)}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition ${
                 isActive
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
               }`}
             >
-              <IconComponent size={14} className={isActive ? 'text-cyan-400' : 'text-slate-400'} />
+              <IconComponent size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
               <span>{tab.label}</span>
             </button>
           );

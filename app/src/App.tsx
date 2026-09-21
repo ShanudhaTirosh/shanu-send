@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Download, Monitor, Settings as SettingsIcon, History as HistoryIcon, QrCode, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Send, Download, Monitor, Settings as SettingsIcon, History as HistoryIcon, QrCode, Smartphone, Wifi } from "lucide-react";
 import type { Device } from "./types";
 import { useDevices } from "./features/discovery/useDevices";
 import { DeviceList } from "./features/discovery/DeviceList";
@@ -20,7 +20,7 @@ import { sendFiles, type LocalFileInput } from "./lib/tauri";
 
 import ScrcpyHub from "./features/scrcpy/ScrcpyHub";
 
-type ActiveTab = "send" | "receive" | "devices" | "tools" | "settings";
+type ActiveTab = "send" | "receive" | "mirror" | "shanuconnect" | "devices";
 
 export default function App() {
   if (typeof window !== "undefined" && (window.location.pathname.startsWith("/web") || window.location.pathname.startsWith("/webdrop"))) {
@@ -33,9 +33,6 @@ export default function App() {
   const [progress, setProgress] = useState<Record<string, FileProgressState>>({});
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("send");
-
-  // Secondary Tools Sub-tab
-  const [toolsTab, setToolsTab] = useState<"mirror" | "shanuconnect">("mirror");
 
   // Modals
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -77,7 +74,7 @@ export default function App() {
             <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
               ShanuSend <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">v2.5.3</span>
             </h1>
-            <p className="text-xs text-slate-400">LocalSend-compatible file sharing & extension suite</p>
+            <p className="text-xs text-slate-400">Cross-Platform LocalSend File Sharing & Device Suite</p>
           </div>
         </div>
 
@@ -116,10 +113,10 @@ export default function App() {
       </header>
 
       {/* Primary LocalSend-Style Navigation Rail/Tabs */}
-      <nav className="flex gap-2 border-b border-slate-800 pb-3">
+      <nav className="flex gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab("send")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
             activeTab === "send" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
           }`}
         >
@@ -129,7 +126,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab("receive")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
             activeTab === "receive" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
           }`}
         >
@@ -138,23 +135,33 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab("mirror")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
+            activeTab === "mirror" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Monitor size={14} />
+          <span>Screen Mirroring (Scrcpy)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("shanuconnect")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
+            activeTab === "shanuconnect" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <Smartphone size={14} />
+          <span>ShanuConnect Suite</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("devices")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
             activeTab === "devices" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
           }`}
         >
           <Wifi size={14} />
           <span>Nearby Devices ({devices.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("tools")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
-            activeTab === "tools" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          <Wrench size={14} />
-          <span>Tools & Extensions</span>
         </button>
       </nav>
 
@@ -176,7 +183,7 @@ export default function App() {
       )}
 
       {/* Main View Area */}
-      <main className="grid flex-1 grid-cols-1 gap-5 overflow-hidden md:grid-cols-[minmax(0,1fr)_340px]">
+      <main className={`grid flex-1 gap-5 overflow-hidden ${activeTab === "send" ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px]" : "grid-cols-1"}`}>
         <div className="flex flex-col gap-4 overflow-y-auto pr-1">
           {activeTab === "send" && (
             <>
@@ -219,38 +226,15 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === "tools" && (
-            <div className="flex flex-col gap-4 flex-1">
-              <div className="flex gap-2 border-b border-slate-800 pb-2">
-                <button
-                  onClick={() => setToolsTab("mirror")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
-                    toolsTab === "mirror" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Monitor size={14} />
-                  <span>Screen Mirroring (Scrcpy)</span>
-                </button>
-                <button
-                  onClick={() => setToolsTab("shanuconnect")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
-                    toolsTab === "shanuconnect" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Smartphone size={14} />
-                  <span>ShanuConnect Suite</span>
-                </button>
-              </div>
+          {activeTab === "mirror" && (
+            <div className="flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+              <ScrcpyHub />
+            </div>
+          )}
 
-              {toolsTab === "mirror" && (
-                <div className="flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
-                  <ScrcpyHub />
-                </div>
-              )}
-
-              {toolsTab === "shanuconnect" && (
-                <PhoneControlPanel selectedDevice={selected} devices={devices} />
-              )}
+          {activeTab === "shanuconnect" && (
+            <div className="flex-1 overflow-hidden">
+              <PhoneControlPanel selectedDevice={selected} devices={devices} />
             </div>
           )}
         </div>
