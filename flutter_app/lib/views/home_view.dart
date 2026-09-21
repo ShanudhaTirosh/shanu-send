@@ -7,12 +7,14 @@ import '../models/device_dto.dart';
 import '../models/file_dto.dart';
 import '../services/discovery_service.dart';
 import '../services/transfer_service.dart';
-import '../services/webdrop_server.dart';
+import '../services/unified_http_server.dart';
+import '../services/notification_service.dart';
 import '../widgets/speed_badge.dart';
 import '../widgets/webdrop_modal.dart';
+
 import 'shanu_connect_view.dart';
-import '../services/receiver_service.dart';
-import '../services/notification_service.dart';
+import 'desktop_phone_link_view.dart';
+import 'scrcpy_gui_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -24,13 +26,15 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   final DiscoveryService _discoveryService = DiscoveryService();
   final TransferService _transferService = TransferService();
-  final WebDropServer _webDropServer = WebDropServer();
-  final ReceiverService _receiverService = ReceiverService();
+  final UnifiedHttpServer _httpServer = UnifiedHttpServer();
 
   int _currentNavIndex = 0;
   String? _localIp;
   List<FileDto> _selectedFiles = [];
   TransferStatus? _activeTransfer;
+  DeviceDto? _selectedDevice;
+
+  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
   @override
   void initState() {
@@ -43,12 +47,15 @@ class _HomeViewState extends State<HomeView> {
     setState(() {
       _localIp = ip;
     });
-    await _receiverService.startServer();
-    await _webDropServer.startServer();
+
+    // Start Unified HTTP Server on port 53317 (handles LocalSend API AND WebDrop Browser HTML)
+    await _httpServer.startServer();
     await NotificationService().initialize();
+
+    // Continuous LAN Discovery
     _discoveryService.scanSubnet();
 
-    _receiverService.eventStream.listen((event) {
+    _httpServer.eventStream.listen((event) {
       if (event.type == 'incoming-request') {
         final data = event.data;
         final senderAlias = data['senderAlias'] as String? ?? 'Device';
@@ -107,14 +114,22 @@ class _HomeViewState extends State<HomeView> {
         _activeTransfer = status;
       });
     });
+
+    // Auto-select first discovered device when available
+    _discoveryService.deviceStream.listen((devices) {
+      if (devices.isNotEmpty && _selectedDevice == null) {
+        setState(() {
+          _selectedDevice = devices.first;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _discoveryService.dispose();
     _transferService.dispose();
-    _webDropServer.stopServer();
-    _receiverService.dispose();
+    _httpServer.dispose();
     super.dispose();
   }
 
@@ -194,10 +209,45 @@ class _HomeViewState extends State<HomeView> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.mouse_rounded, color: Color(0xFF38BDF8)),
-            tooltip: 'Mobile Remote Touchpad',
-            onPressed: () => _openRemoteController(),
+          StreamBuilder<List<DeviceDto>>(
+            stream: _discoveryService.deviceStream,
+            initialData: _discoveryService.devices,
+            builder: (context, snapshot) {
+              final devices = snapshot.data ?? [];
+              if (devices.isEmpty) return const SizedBox.shrink();
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161E2E),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF283548)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<DeviceDto>(
+                    value: _selectedDevice,
+                    dropdownColor: const Color(0xFF161E2E),
+                    icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF38BDF8)),
+                    hint: const Text('Select Target Device', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    items: devices.map((d) {
+                      return DropdownMenuItem<DeviceDto>(
+                        value: d,
+                        child: Text(
+                          d.alias,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (dev) {
+                      if (dev != null) {
+                        setState(() => _selectedDevice = dev);
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.radar_rounded, color: Color(0xFF38BDF8)),
@@ -213,12 +263,41 @@ class _HomeViewState extends State<HomeView> {
       ),
       body: IndexedStack(
         index: _currentNavIndex,
-        children: [
-          _buildTransfersTab(),
-          const ShanuConnectView(deviceName: 'Host PC Controller'),
-          _buildWebDropTab(),
-          _buildPairingTab(),
-        ],
+        children: _isDesktop
+            ? [
+                _buildTransfersTab(),
+                StreamBuilder<List<DeviceDto>>(
+                  stream: _discoveryService.deviceStream,
+                  initialData: _discoveryService.devices,
+                  builder: (context, snapshot) {
+                    final devices = snapshot.data ?? [];
+                    return DesktopPhoneLinkView(
+                      devices: devices,
+                      initialSelectedDevice: _selectedDevice,
+                      onDeviceSelected: (d) => setState(() => _selectedDevice = d),
+                      onPairRequested: () => _openRemoteController(_selectedDevice?.alias ?? 'Desktop PC'),
+                    );
+                  },
+                ),
+                const ScrcpyGuiView(),
+                _buildWebDropTab(),
+              ]
+            : [
+                _buildTransfersTab(),
+                StreamBuilder<List<DeviceDto>>(
+                  stream: _discoveryService.deviceStream,
+                  initialData: _discoveryService.devices,
+                  builder: (context, snapshot) {
+                    final devices = snapshot.data ?? [];
+                    return ShanuConnectView(
+                      deviceName: _selectedDevice?.alias ?? 'Host PC',
+                      targetIp: _selectedDevice?.ip,
+                      devices: devices,
+                    );
+                  },
+                ),
+                _buildWebDropTab(),
+              ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentNavIndex,
@@ -227,24 +306,39 @@ class _HomeViewState extends State<HomeView> {
         selectedItemColor: const Color(0xFF38BDF8),
         unselectedItemColor: const Color(0xFF64748B),
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.swap_horiz_rounded),
-            label: 'Transfers',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.mouse_rounded),
-            label: 'Mobile Remote',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.language_rounded),
-            label: 'WebDrop',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.devices_rounded),
-            label: 'Pair & Hub',
-          ),
-        ],
+        items: _isDesktop
+            ? const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.swap_horiz_rounded),
+                  label: 'Transfers',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.smartphone_rounded),
+                  label: 'Phone Link',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.aspect_ratio_rounded),
+                  label: 'Scrcpy GUI',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.language_rounded),
+                  label: 'WebDrop',
+                ),
+              ]
+            : const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.swap_horiz_rounded),
+                  label: 'Transfers',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.mouse_rounded),
+                  label: 'Remote & Hub',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.language_rounded),
+                  label: 'WebDrop',
+                ),
+              ],
       ),
     );
   }
@@ -281,7 +375,7 @@ class _HomeViewState extends State<HomeView> {
                       Text(
                         _selectedFiles.isEmpty
                             ? 'Select files to send'
-                            : '${_selectedFiles.length} file(s) ready',
+                            : '${_selectedFiles.length} file(s) ready for sending',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -316,7 +410,7 @@ class _HomeViewState extends State<HomeView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Nearby Devices',
+                'Nearby Discovered Endpoints',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -364,12 +458,12 @@ class _HomeViewState extends State<HomeView> {
                         Icon(Icons.radar_rounded, size: 64, color: Colors.white.withValues(alpha: 0.2)),
                         const SizedBox(height: 12),
                         const Text(
-                          'Scanning local network...',
+                          'Scanning local network continuously...',
                           style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Make sure target devices are on the same Wi-Fi',
+                          'Supports LocalSend, Quick Share, AirDrop & ShanuSend P2P',
                           style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
                         ),
                       ],
@@ -381,14 +475,17 @@ class _HomeViewState extends State<HomeView> {
                   itemCount: devices.length,
                   itemBuilder: (context, index) {
                     final device = devices[index];
+                    final isSelected = _selectedDevice?.ip == device.ip;
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF161E2E),
+                        color: isSelected ? const Color(0xFF1E293B) : const Color(0xFF161E2E),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF283548)),
+                        border: Border.all(color: isSelected ? const Color(0xFF38BDF8) : const Color(0xFF283548)),
                       ),
                       child: ListTile(
+                        onTap: () => setState(() => _selectedDevice = device),
                         leading: CircleAvatar(
                           backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                           child: Icon(
@@ -422,7 +519,7 @@ class _HomeViewState extends State<HomeView> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
-                                'ShanuConnect P2P',
+                                'ShanuSend P2P',
                                 style: TextStyle(color: Color(0xFFA5B4FC), fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -482,7 +579,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Share files with any browser on iOS, Android, Windows, Mac or Linux without installing software.',
+            'Share files with any web browser on iOS Safari, Android Chrome, Windows, Mac, or Linux without installing software.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
           ),
@@ -496,17 +593,17 @@ class _HomeViewState extends State<HomeView> {
             ),
             child: Column(
               children: [
-                const Text('Portal Server Address:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const Text('Web Browser Address:', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 8),
                 SelectableText(
                   _localIp != null ? 'http://$_localIp:53317' : 'http://192.168.1.x:53317',
-                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: _openWebDropModal,
                   icon: const Icon(Icons.qr_code_rounded),
-                  label: const Text('Show QR Code & Link'),
+                  label: const Text('Show QR Code & Link Modal'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF38BDF8),
                     foregroundColor: const Color(0xFF0B0F19),
@@ -515,113 +612,6 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPairingTab() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: ListView(
-        children: [
-          const Text(
-            'Device Hub & Pairing Instructions',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pair devices to unlock remote touchpad control, media playback, presenter clicker, and system commands.',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-          ),
-          const SizedBox(height: 20),
-
-          // SAS PIN Guide Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E1B4B), Color(0xFF0F172A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.security_rounded, color: Color(0xFF38BDF8)),
-                    SizedBox(width: 8),
-                    Text('6-Digit SAS PIN Authentication', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '1. Open ShanuConnect on both devices.\n'
-                  '2. Tap "Connect & Pair" on either device.\n'
-                  '3. Locate the 6-digit SAS Security PIN shown on screen.\n'
-                  '4. Input the PIN and tap "Approve & Connect" to authenticate session.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          const Text(
-            'Discovered Endpoints',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-
-          StreamBuilder<List<DeviceDto>>(
-            stream: _discoveryService.deviceStream,
-            initialData: _discoveryService.devices,
-            builder: (context, snapshot) {
-              final devices = snapshot.data ?? [];
-              if (devices.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF161E2E),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'No devices found yet. Scanning LAN...',
-                      style: TextStyle(color: Colors.white54, fontSize: 14),
-                    ),
-                  ),
-                );
-              }
-
-              return Column(
-                children: devices.map((d) {
-                  return Card(
-                    color: const Color(0xFF161E2E),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(_getDeviceIcon(d.deviceType), color: const Color(0xFF38BDF8)),
-                      title: Text(d.alias, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text('${d.ip} • ${d.deviceModel}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                      trailing: ElevatedButton.icon(
-                        onPressed: () => _openRemoteController(d.alias),
-                        icon: const Icon(Icons.link_rounded, size: 16),
-                        label: const Text('Pair / Connect'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF38BDF8),
-                          foregroundColor: const Color(0xFF0B0F19),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
           ),
         ],
       ),
