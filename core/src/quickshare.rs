@@ -165,7 +165,10 @@ pub fn start_quickshare_mdns_responder(device_name: String) -> tokio::task::Join
             Some(socket2::Protocol::UDP),
         ) {
             Ok(s) => s,
-            Err(_) => return,
+            Err(e) => {
+                tracing::warn!("Quick Share mDNS responder: socket creation failed: {e}");
+                return;
+            }
         };
 
         let _ = socket.set_reuse_address(true);
@@ -173,23 +176,34 @@ pub fn start_quickshare_mdns_responder(device_name: String) -> tokio::task::Join
         let bind_addr: std::net::SocketAddr =
             std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 5353).into();
 
-        if socket.bind(&bind_addr.into()).is_ok()
-            && socket
-                .join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED)
-                .is_ok()
-        {
-            if let Ok(udp) = tokio::net::UdpSocket::from_std(socket.into()) {
-                let mut buf = [0u8; 1024];
-                while let Ok((len, from)) = udp.recv_from(&mut buf).await {
-                    let req_str = String::from_utf8_lossy(&buf[..len]);
-                    if req_str.contains("FC92") || req_str.contains("nearby") {
-                        let resp = format!(
-                            "PTR ShanuSend-{device_name}._FC92._tcp.local. port {}\r\n",
-                            QUICKSHARE_PORT
-                        );
-                        let _ = udp.send_to(resp.as_bytes(), from).await;
-                    }
-                }
+        if let Err(e) = socket.bind(&bind_addr.into()) {
+            tracing::warn!("Quick Share mDNS responder: port 5353 bind failed ({e}); skipping listener");
+            return;
+        }
+
+        if let Err(e) = socket.join_multicast_v4(&multicast_addr, &std::net::Ipv4Addr::UNSPECIFIED) {
+            tracing::warn!("Quick Share mDNS responder: join multicast failed ({e}); skipping listener");
+            return;
+        }
+
+        let std_socket: std::net::UdpSocket = socket.into();
+        let tokio_socket = match tokio::net::UdpSocket::from_std(std_socket) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("Quick Share mDNS responder: failed to register socket with tokio: {e}");
+                return;
+            }
+        };
+
+        let mut buf = [0u8; 1024];
+        while let Ok((len, from)) = tokio_socket.recv_from(&mut buf).await {
+            let req_str = String::from_utf8_lossy(&buf[..len]);
+            if req_str.contains("FC92") || req_str.contains("nearby") {
+                let resp = format!(
+                    "PTR ShanuSend-{device_name}._FC92._tcp.local. port {}\r\n",
+                    QUICKSHARE_PORT
+                );
+                let _ = tokio_socket.send_to(resp.as_bytes(), from).await;
             }
         }
     })
