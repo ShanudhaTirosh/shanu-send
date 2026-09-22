@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/device_identity_service.dart';
 import '../services/shanu_connect_service.dart';
 
 class RemoteTrackpadView extends StatefulWidget {
@@ -17,7 +18,12 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
   @override
   void initState() {
     super.initState();
-    _shanuService.startDiscovery('Trackpad Remote', 'trackpad-remote-id');
+    _startDiscovery();
+  }
+
+  Future<void> _startDiscovery() async {
+    final deviceId = await DeviceIdentityService().getOrCreateDeviceId();
+    await _shanuService.startDiscovery('Trackpad Remote', deviceId);
   }
 
   @override
@@ -44,6 +50,21 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
 
   void _onPanEnd(DragEndDetails details) {
     _lastPosition = null;
+  }
+
+  void _sendClick(String click, String label) {
+    _shanuService.sendMousepad(0, 0, click: click, targetIp: widget.targetIp);
+    _showFeedback(label);
+  }
+
+  void _sendSlide({required bool next}) {
+    _shanuService.sendPresenterSlide(next: next, targetIp: widget.targetIp);
+    _showFeedback(next ? 'Next Slide' : 'Prev Slide');
+  }
+
+  void _sendPlayPause() {
+    _shanuService.sendMprisCommand('playpause', targetIp: widget.targetIp);
+    _showFeedback('Play / Pause');
   }
 
   void _showFeedback(String msg) {
@@ -78,9 +99,9 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
                 onPanStart: _onPanStart,
                 onPanUpdate: _onPanUpdate,
                 onPanEnd: _onPanEnd,
-                onTap: () => _showFeedback('Left Click'),
-                onDoubleTap: () => _showFeedback('Double Click'),
-                onLongPress: () => _showFeedback('Right Click'),
+                onTap: () => _sendClick('left', 'Left Click'),
+                onDoubleTap: () => _sendClick('double', 'Double Click'),
+                onLongPress: () => _sendClick('right', 'Right Click'),
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -122,7 +143,7 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _showFeedback('Left Click'),
+                    onPressed: () => _sendClick('left', 'Left Click'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF121622),
                       foregroundColor: Colors.white,
@@ -138,7 +159,7 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _showFeedback('Right Click'),
+                    onPressed: () => _sendClick('right', 'Right Click'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF121622),
                       foregroundColor: Colors.white,
@@ -168,17 +189,17 @@ class _RemoteTrackpadViewState extends State<RemoteTrackpadView> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
-                    onPressed: () => _showFeedback('Prev Slide'),
+                    onPressed: () => _sendSlide(next: false),
                     tooltip: 'Previous Slide',
                   ),
                   IconButton(
                     icon: const Icon(Icons.play_arrow, color: Color(0xFF4DD9FF), size: 24),
-                    onPressed: () => _showFeedback('Play / Pause'),
+                    onPressed: _sendPlayPause,
                     tooltip: 'Play / Pause',
                   ),
                   IconButton(
                     icon: const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 20),
-                    onPressed: () => _showFeedback('Next Slide'),
+                    onPressed: () => _sendSlide(next: true),
                     tooltip: 'Next Slide',
                   ),
                 ],

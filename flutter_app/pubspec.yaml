@@ -48,6 +48,11 @@ dependencies:
   flutter_local_notifications: ^17.1.2
   permission_handler: ^11.3.1
 
+  # Added for real scrcpy/adb binary bootstrap + native desktop input control
+  archive: ^3.6.1
+  crypto: ^3.0.3
+  ffi: ^2.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

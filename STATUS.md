@@ -1,60 +1,65 @@
-# ShanuSend — System Status & Platform Matrix
+# ShanuSend — Status
 
-Authoritative system feature matrix and verification status across **Desktop Host (`app/` + `flutter_app/`)** and **Mobile Client (`flutter_app/`)**.
+This replaces the previous version of this file, which claimed "0 errors / 0 issues / all tests passed" without
+a linked, reproducible CI run to back that up, and described desktop features (`app/` Tauri client) that don't
+exist in this repo. This version is a plain real / partial / planned breakdown, verified by reading
+`flutter_app/lib/` and `core/src/` directly. See `IMPLEMENTATION_PLAN.md` for the detailed audit and fix plan.
 
----
+Legend: ✅ implemented and wired into the app · 🟡 partially implemented (see note) · ⬜ not implemented yet
 
-## 🖥️ Desktop App (`flutter_app/` & `app/`) — Host & Workstation Engine
+## Core transfer
 
-The desktop app operates as the central workstation hub for file transfers, display rendering, and multi-protocol discovery:
+| Feature | Status | Note |
+| :--- | :--- | :--- |
+| LocalSend v2.1 receive (push) | ✅ | `UnifiedHttpServer` — `prepare-upload`/`upload`, now gated behind a real Accept/Decline prompt |
+| LocalSend v2.1 send | ✅ | via `TransferService` |
+| LocalSend "download mode" (pull) | ⬜ | no `GET /api/localsend/v2/download` route yet |
+| WebDrop browser portal | ✅ | served from the same port, no app install required |
+| TLS transport | ⬜ | plain HTTP today; `core/`'s `rustls` support isn't linked into the app yet |
+| Apple AirDrop / Google Quick Share | 🟡 | implemented in `core/` (Rust); not linked into `flutter_app/`, so not active in the shipped app |
 
-- **Primary Interface Panels**:
-  1. **ScrcpyGUI Suite (`scrcpy_gui_view.dart`)**:
-     - ADB device discovery picker (USB & Wireless ADB).
-     - Resolution presets: 720p, 1080p, and Original source resolution.
-     - Bitrate tuning (2 - 16 Mbps), FPS caps (30/60 FPS), Video Codecs (H.264, H.265, AV1).
-     - Stay Awake during mirroring toggle, Turn Screen Off toggle, and MP4 Screen Recording engine.
-  2. **Phone Link Host Hub (`desktop_phone_link_view.dart`)**:
-     - Active device selector dropdown with 6-digit SAS Security PIN pairing modal.
-     - **Pure Live Event Stream**: Real-time packet listeners (`shanuconnect.notifications`, `shanuconnect.sms`, `shanuconnect.battery`, `shanuconnect.mpris`) with zero mock/hardcoded demo arrays.
-     - Mirrored phone notifications with inline reply action.
-     - Phone Battery status & charging indicator, Wi-Fi status, and remote phone ringer trigger (`Find Phone`).
-     - SMS reader and manager; call control alerts.
-     - Bidirectional clipboard auto-sync.
-  3. **Universal File Transfer (`home_view.dart`)**:
-     - **UnifiedHttpServer**: Consolidated port `53317` server eliminating `Route not found` errors and uniting LocalSend v2.1 API with WebDrop HTML5 browser portal.
-     - Continuous LAN scanning loop for LocalSend v2.1, Apple AirDrop, Google Quick Share, and ShanuSend P2P.
-  4. **WebDrop Browser Portal**:
-     - Zero-install browser file transfer portal served on port 53317 (`http://<IP>:53317` & `http://<IP>:53317/webdrop`).
+## ShanuConnect (remote control / phone link)
 
----
+| Feature | Status | Note |
+| :--- | :--- | :--- |
+| Device pairing | ✅ | mutual code confirmation on both sides + persisted trust list (`trusted_device_store.dart`) — previously any typed 6-digit number was accepted with no check |
+| Per-install device identity | ✅ | persisted UUID (`device_identity_service.dart`) — previously every install shared the same hardcoded ID |
+| Trackpad → real cursor movement | 🟡 | Windows: direct Win32 calls. macOS/Linux: via `cliclick`/`xdotool` if installed, otherwise no-op |
+| Trackpad UI buttons (click, slides, play/pause) | ✅ | now send real packets — previously most buttons only updated local UI text |
+| Command execution allow-list (`runcommand`) | ⬜ | not implemented — do not enable arbitrary remote command execution without this |
+| Notifications / SMS / battery / MPRIS sync | 🟡 | packet types and some UI exist; not all paths verified end-to-end |
+| Cryptographic pairing (vs. mutual on-screen comparison) | ⬜ | planned once the Rust core's crypto module is bridged in |
 
-## 📱 Mobile App (`flutter_app/`) — Client & Remote Controller
+## Scrcpy screen mirroring
 
-The mobile app is built with Flutter and Dart, optimized for phone/tablet interaction:
+| Feature | Status | Note |
+| :--- | :--- | :--- |
+| ADB device discovery | ✅ | real `adb devices -l` polling — previously a single hardcoded placeholder entry |
+| Wireless ADB pairing | ✅ | `adb pair` / `adb connect` flow in the UI |
+| adb binary bootstrap | ✅ | auto-downloads Google's platform-tools for the current OS if not already present |
+| scrcpy binary bootstrap | 🟡 | automated on Windows only; macOS/Linux show package-manager install instructions |
+| Per-device targeting (`-s <serial>`) | ✅ | |
+| Session error visibility | ✅ | stderr/stdout now surfaced in-app instead of only `debugPrint` |
 
-- **Primary Views & Services**:
-  1. **Universal Transfer Manager (`home_view.dart`)**:
-     - Multi-file selection, subnet scanner, live MB/s speed meter badge, and transfer progress indicator.
-  2. **Mobile Remote Controller & Device Hub (`shanu_connect_view.dart`)**:
-     - Integrated Device Hub selector bar with 6-digit SAS PIN pairing modal.
-     - Multi-touch trackpad surface (gestures, tap-to-click, scroll), MPRIS media player remote, presenter slide clicker, shared clipboard sync, and remote workstation commands.
-  3. **Unified WebDrop Server (`unified_http_server.dart`)**:
-     - Embedded HTTP server serving the WebDrop portal and generating QR codes for browser sharing.
+## Platform configuration
 
----
+| Item | Status | Note |
+| :--- | :--- | :--- |
+| Android permissions | ✅ | |
+| Android cleartext HTTP | ✅ | `network_security_config.xml` added — previously broke LAN transfer on Android 9+/API 28+ |
+| iOS local network / Bonjour usage keys | ✅ | |
 
-## 🚀 Build & Integration Verification Matrix
+## Architecture
 
-| Component | Target Platform | Verification Command | Result |
-| :--- | :--- | :--- | :--- |
-| **Rust Core** (`core/`) | Multi-Platform Engine | `cargo check` | **PASSED** (0 errors) |
-| **Desktop App** (`app/src-tauri`) | Windows / macOS / Linux | `cargo check` | **PASSED** (0 errors) |
-| **Flutter Analysis** (`flutter_app/`) | Android / iOS / Desktop | `flutter analyze` | **PASSED** (0 issues found!) |
-| **Flutter Test Suite** (`flutter_app/`) | Unit & Widget Tests | `flutter test` | **PASSED** (All tests passed!) |
-| **Windows Native Executable** (`flutter_app/`) | Windows x64 Release | `flutter build windows` | **PASSED** (`shanu_send_flutter.exe`) |
+| Item | Status | Note |
+| :--- | :--- | :--- |
+| Rust core (`core/`) linked into the Flutter app | ⬜ | not linked today (no `flutter_rust_bridge` dependency); see `IMPLEMENTATION_PLAN.md` §2 |
+| Single source of truth for protocol logic | ⬜ | currently duplicated between `core/` (Rust) and `flutter_app/lib/services/` (Dart) |
 
----
+## Build verification
 
-*Last Updated: September 2026*
+No claim is made here about `flutter analyze` / `flutter test` / release build results, because this file is generated
+from a source read, not a CI run. Wire this table to your actual CI job output (see `IMPLEMENTATION_PLAN.md` §7 —
+"Verified CI") rather than filling it in by hand.
 
+*Last updated from a direct source read alongside `IMPLEMENTATION_PLAN.md`.*

@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/device_dto.dart';
+import '../services/device_identity_service.dart';
+import '../services/native_input_service.dart';
 import '../services/shanu_connect_service.dart';
+import '../services/trusted_device_store.dart';
 
 class DesktopPhoneLinkView extends StatefulWidget {
   final List<DeviceDto> devices;
@@ -24,10 +28,17 @@ class DesktopPhoneLinkView extends StatefulWidget {
 class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ShanuConnectService _shanuService = ShanuConnectService();
+  final TrustedDeviceStore _trustStore = TrustedDeviceStore();
+  final NativeInputService _inputService = NativeInputService();
   StreamSubscription<Map<String, dynamic>>? _packetSubscription;
+
+  String? _myDeviceId;
+  // Set while we're waiting for the peer to confirm/reject the code we sent.
+  String? _pendingSasCode;
 
   DeviceDto? _activeDevice;
   bool _isPaired = false;
+  String? _pairedPeerId;
   bool _isCharging = false;
   int? _batteryLevel;
   double _mediaVolume = 70.0;
@@ -53,10 +64,39 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
       _activeDevice = widget.devices.first;
     }
 
-    _shanuService.startDiscovery('Desktop Host Hub', 'desktop-host-id');
-    _packetSubscription = _shanuService.packetStream.listen((packet) {
+    _startDiscovery();
+  }
+
+  Future<void> _startDiscovery() async {
+    _myDeviceId = await DeviceIdentityService().getOrCreateDeviceId();
+    await _shanuService.startDiscovery('Desktop Host Hub', _myDeviceId!);
+    _listenForPackets();
+  }
+
+  void _listenForPackets() {
+    _packetSubscription = _shanuService.packetStream.listen((packet) async {
       final type = packet['type'] as String? ?? '';
       final body = packet['body'] as Map<String, dynamic>? ?? {};
+      final senderIp = packet['_senderIp'] as String?;
+
+      if (type == 'shanuconnect.pair') {
+        await _handlePairPacket(body, senderIp);
+        return;
+      }
+
+      if (type == 'shanuconnect.mousepad') {
+        final senderId = _activeDevice?.alias; // best-effort peer label for logs only
+        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        if (!trusted) {
+          debugPrint('Ignored mousepad packet from untrusted/unpaired sender ($senderId)');
+          return;
+        }
+        final dx = (body['dx'] as num?)?.toDouble() ?? 0;
+        final dy = (body['dy'] as num?)?.toDouble() ?? 0;
+        final click = body['click'] as String?;
+        await _inputService.moveAndClick(dx: dx, dy: dy, click: click);
+        return;
+      }
 
       if (type == 'shanuconnect.notifications') {
         setState(() {
@@ -121,58 +161,145 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
   }
 
   void _requestPairing() {
-    final TextEditingController pinController = TextEditingController();
+    if (_myDeviceId == null) {
+      _showToast('Still starting up — try again in a moment');
+      return;
+    }
+    final targetIp = _activeDevice?.ip;
+    final code = (100000 + Random.secure().nextInt(900000)).toString();
+    _pendingSasCode = code;
+
+    _shanuService.sendPairing(
+      pair: true,
+      deviceId: _myDeviceId!,
+      sasCode: code,
+      targetIp: targetIp,
+    );
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF161E2E),
-        title: Text('Connect & Pair Device: ${_activeDevice?.alias ?? "Mobile Device"}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        title: Text('Pairing: ${_activeDevice?.alias ?? "Mobile Device"}', style: const TextStyle(color: Colors.white, fontSize: 16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Pairing request initiated. Please confirm or enter the 6-digit SAS Security PIN shown on mobile screen:',
+              "This code was sent to the phone. Only approve there if it matches — don't type a code in, compare it:",
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                hintText: '123456',
-                hintStyle: const TextStyle(color: Colors.white24),
-                filled: true,
-                fillColor: const Color(0xFF090B11),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            Center(
+              child: Text(
+                code,
+                style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
               ),
             ),
+            const SizedBox(height: 8),
+            const Text('Waiting for the phone to respond…', style: TextStyle(color: Colors.white38, fontSize: 12)),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
             onPressed: () {
-              if (pinController.text.length == 6) {
-                setState(() {
-                  _isPaired = true;
-                });
-                Navigator.pop(ctx);
-                _showToast('Mobile Device Paired & Authenticated Successfully!');
-              }
+              _pendingSasCode = null;
+              Navigator.pop(ctx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF090B11)),
-            child: const Text('Approve & Connect'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
         ],
       ),
     );
+  }
+
+  /// Handles both directions of the pairing exchange:
+  ///  - an incoming *request* from a peer (ack == false): show the code we
+  ///    were sent and require an explicit compare-and-approve before trusting.
+  ///  - the *reply* to a request we initiated (ack == true): only completes
+  ///    pairing if the code matches what we sent — anything else is dropped.
+  ///
+  /// This is a mutual on-screen comparison, not a cryptographic handshake —
+  /// it stops "type any 6 digits" bypasses, but a device on the LAN could
+  /// still spoof UDP packets. Binding this to a real key exchange is tracked
+  /// as follow-up work once the Rust core (which already has crypto
+  /// primitives) is bridged in.
+  Future<void> _handlePairPacket(Map<String, dynamic> body, String? senderIp) async {
+    final peerId = body['deviceId'] as String?;
+    final sasCode = body['sasCode'] as String?;
+    final pair = body['pair'] as bool? ?? false;
+    final ack = body['ack'] as bool? ?? false;
+    if (peerId == null || peerId == _myDeviceId) return;
+
+    if (ack) {
+      if (_pendingSasCode == null || sasCode != _pendingSasCode) return;
+      _pendingSasCode = null;
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+      if (pair) {
+        await _trustStore.trust(peerId, alias: _activeDevice?.alias);
+        if (mounted) {
+          setState(() {
+            _isPaired = true;
+            _pairedPeerId = peerId;
+          });
+          _showToast('Mobile Device Paired & Authenticated Successfully!');
+        }
+      } else if (mounted) {
+        _showToast('Pairing was declined on the phone.');
+      }
+      return;
+    }
+
+    if (pair && sasCode != null && mounted) {
+      final approved = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF161E2E),
+          title: const Text('Pairing request', style: TextStyle(color: Colors.white, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('A device wants to pair. Confirm this code matches what it shows:',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(sasCode,
+                    style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Reject', style: TextStyle(color: Colors.redAccent)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
+              child: const Text('Codes Match — Approve'),
+            ),
+          ],
+        ),
+      );
+
+      final replyIp = senderIp ?? _activeDevice?.ip;
+      if (approved == true) {
+        await _trustStore.trust(peerId);
+        _shanuService.sendPairing(pair: true, deviceId: _myDeviceId!, sasCode: sasCode, ack: true, targetIp: replyIp);
+        if (mounted) {
+          setState(() {
+            _isPaired = true;
+            _pairedPeerId = peerId;
+          });
+          _showToast('Paired & Authenticated Successfully!');
+        }
+      } else {
+        _shanuService.sendPairing(pair: false, deviceId: _myDeviceId!, sasCode: sasCode, ack: true, targetIp: replyIp);
+      }
+    }
   }
 
   @override
@@ -251,7 +378,11 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                 ElevatedButton.icon(
                   onPressed: () {
                     if (_isPaired) {
-                      setState(() => _isPaired = false);
+                      if (_pairedPeerId != null) _trustStore.revoke(_pairedPeerId!);
+                      setState(() {
+                        _isPaired = false;
+                        _pairedPeerId = null;
+                      });
                       _showToast('Device Unpaired');
                     } else {
                       _requestPairing();

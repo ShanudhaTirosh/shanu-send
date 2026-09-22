@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/device_dto.dart';
+import '../services/device_identity_service.dart';
 import '../services/discovery_service.dart';
 import '../services/shanu_connect_service.dart';
+import '../services/trusted_device_store.dart';
 
 class ShanuConnectView extends StatefulWidget {
   final String deviceName;
@@ -26,6 +30,12 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
   late TabController _tabController;
   final ShanuConnectService _shanuService = ShanuConnectService();
   final DiscoveryService _discoveryService = DiscoveryService();
+  final TrustedDeviceStore _trustStore = TrustedDeviceStore();
+  StreamSubscription<Map<String, dynamic>>? _packetSubscription;
+
+  String? _myDeviceId;
+  String? _pendingSasCode;
+  String? _pairedPeerId;
 
   DeviceDto? _selectedDevice;
   bool _isPlaying = true;
@@ -48,15 +58,28 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 7, vsync: this);
-    _shanuService.startDiscovery('Mobile Remote Controller', 'mobile-remote-id');
+    _startDiscovery();
 
     if (widget.devices.isNotEmpty) {
       _selectedDevice = widget.devices.first;
     }
   }
 
+  Future<void> _startDiscovery() async {
+    _myDeviceId = await DeviceIdentityService().getOrCreateDeviceId();
+    await _shanuService.startDiscovery('Mobile Remote Controller', _myDeviceId!);
+    _packetSubscription = _shanuService.packetStream.listen((packet) {
+      if (packet['type'] == 'shanuconnect.pair') {
+        final body = packet['body'] as Map<String, dynamic>? ?? {};
+        final senderIp = packet['_senderIp'] as String?;
+        _handlePairPacket(body, senderIp);
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _packetSubscription?.cancel();
     _shanuService.stop();
     _tabController.dispose();
     _commandController.dispose();
@@ -78,64 +101,87 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
   }
 
   void _requestPairing([DeviceDto? dev]) {
+    if (_myDeviceId == null) {
+      _showToast('Still starting up — try again in a moment');
+      return;
+    }
     final targetDev = dev ?? _selectedDevice;
     final ip = targetDev?.ip ?? widget.targetIp;
-    _shanuService.sendPairing(pair: true, targetIp: ip);
+    final code = (100000 + Random.secure().nextInt(900000)).toString();
+    _pendingSasCode = code;
+
+    _shanuService.sendPairing(pair: true, deviceId: _myDeviceId!, sasCode: code, targetIp: ip);
     setState(() => _isPairingRequested = true);
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF161E2E),
-        title: Text('Connect & Pair Device: ${targetDev?.alias ?? _activeDeviceName}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        title: Text('Pairing: ${targetDev?.alias ?? _activeDeviceName}', style: const TextStyle(color: Colors.white, fontSize: 16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Pairing request initiated. Please enter the 6-digit SAS PIN shown on target device screen:',
+              "This code was sent to the target device. Only approve there if it matches — don't type a code in, compare it:",
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _pinController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                hintText: '123456',
-                hintStyle: const TextStyle(color: Colors.white24),
-                filled: true,
-                fillColor: const Color(0xFF090B11),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            Center(
+              child: Text(
+                code,
+                style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
               ),
             ),
+            const SizedBox(height: 8),
+            const Text('Waiting for a response…', style: TextStyle(color: Colors.white38, fontSize: 12)),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
             onPressed: () {
-              if (_pinController.text.length == 6) {
-                setState(() {
-                  _isPaired = true;
-                  _isPairingRequested = false;
-                  if (targetDev != null) _selectedDevice = targetDev;
-                });
-                Navigator.pop(ctx);
-                _showToast('Device $_activeDeviceName Paired & Authenticated Successfully!');
-              }
+              _pendingSasCode = null;
+              setState(() => _isPairingRequested = false);
+              Navigator.pop(ctx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF090B11)),
-            child: const Text('Approve & Connect'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
         ],
       ),
     );
+  }
+
+  /// Mirrors DesktopPhoneLinkView._handlePairPacket — see that file for the
+  /// full protocol explanation. This side only ever *initiates* pairing
+  /// today (the UI doesn't yet surface an incoming request banner), but it
+  /// still needs to accept the ack so `_requestPairing` doesn't lie about
+  /// being paired the instant any packet arrives.
+  void _handlePairPacket(Map<String, dynamic> body, String? senderIp) {
+    final peerId = body['deviceId'] as String?;
+    final sasCode = body['sasCode'] as String?;
+    final pair = body['pair'] as bool? ?? false;
+    final ack = body['ack'] as bool? ?? false;
+    if (peerId == null || peerId == _myDeviceId || !ack) return;
+    if (_pendingSasCode == null || sasCode != _pendingSasCode) return;
+
+    _pendingSasCode = null;
+    if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+
+    if (pair) {
+      _trustStore.trust(peerId, alias: _selectedDevice?.alias);
+      if (mounted) {
+        setState(() {
+          _isPaired = true;
+          _isPairingRequested = false;
+          _pairedPeerId = peerId;
+        });
+        _showToast('Device $_activeDeviceName Paired & Authenticated Successfully!');
+      }
+    } else if (mounted) {
+      setState(() => _isPairingRequested = false);
+      _showToast('Pairing was declined on the target device.');
+    }
   }
 
   void _showPairingHelpDialog() {
@@ -305,6 +351,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                               setState(() {
                                 _selectedDevice = dev;
                                 _isPaired = false;
+                                _pairedPeerId = null;
                               });
                               _showToast('Switched control target to ${dev.alias}');
                             }

@@ -67,6 +67,8 @@ class _HomeViewState extends State<HomeView> {
           fileCount: files.length,
           sessionId: sessionId,
         );
+
+        _promptIncomingRequest(sessionId, senderAlias, files);
       } else if (event.type == 'upload-progress') {
         final data = event.data;
         final rec = data['receivedBytes'] as int? ?? 0;
@@ -131,6 +133,61 @@ class _HomeViewState extends State<HomeView> {
     _transferService.dispose();
     _httpServer.dispose();
     super.dispose();
+  }
+
+  /// Shows an Accept/Decline dialog for an incoming transfer and reports the
+  /// decision back to the server, which is now blocked waiting on it (see
+  /// UnifiedHttpServer._handlePrepareUpload). Previously nothing called
+  /// respondToRequest at all, so every incoming transfer was written to disk
+  /// automatically regardless of what this dialog showed.
+  Future<void> _promptIncomingRequest(
+    String sessionId,
+    String senderAlias,
+    Map<String, dynamic> files,
+  ) async {
+    if (!mounted) {
+      _httpServer.respondToRequest(sessionId, false);
+      return;
+    }
+
+    final fileNames = files.values
+        .map((f) => (f as Map<String, dynamic>?)?['fileName'] as String? ?? 'file')
+        .toList();
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('Incoming files from $senderAlias'),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${files.length} file${files.length == 1 ? '' : 's'}:'),
+              const SizedBox(height: 8),
+              ...fileNames.take(5).map(
+                    (n) => Text('•  $n', overflow: TextOverflow.ellipsis, maxLines: 1),
+                  ),
+              if (fileNames.length > 5) Text('…and ${fileNames.length - 5} more'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Decline'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
+    );
+
+    _httpServer.respondToRequest(sessionId, accepted ?? false);
   }
 
   Future<void> _pickFiles() async {

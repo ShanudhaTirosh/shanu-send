@@ -24,6 +24,9 @@ class ShanuConnectService {
             final message = utf8.decode(datagram.data);
             try {
               final Map<String, dynamic> packet = jsonDecode(message);
+              // Not part of the wire protocol — added locally so consumers
+              // can reply to whoever actually sent this packet.
+              packet['_senderIp'] = datagram.address.address;
               if (!_packetController.isClosed) {
                 _packetController.add(packet);
               }
@@ -221,13 +224,29 @@ class ShanuConnectService {
     sendPacket(packet, targetIp);
   }
 
-  void sendPairing({required bool pair, String? targetIp}) {
+  /// [deviceId] must be this device's real persisted ID (see
+  /// DeviceIdentityService) — sending a hardcoded/shared ID here defeats the
+  /// whole point of a trusted-device allow-list, since every install would
+  /// look identical.
+  ///
+  /// [sasCode] carries the 6-digit code being confirmed, shown on both
+  /// screens. [ack] marks this packet as a reply confirming (or rejecting,
+  /// when [pair] is false) a code the sender saw on their own screen.
+  void sendPairing({
+    required bool pair,
+    required String deviceId,
+    String? sasCode,
+    bool ack = false,
+    String? targetIp,
+  }) {
     final packet = {
       'id': DateTime.now().millisecondsSinceEpoch,
       'type': 'shanuconnect.pair',
       'body': {
         'pair': pair,
-        'deviceId': 'mobile-remote-id',
+        'deviceId': deviceId,
+        if (sasCode != null) 'sasCode': sasCode,
+        'ack': ack,
       }
     };
     sendPacket(packet, targetIp);

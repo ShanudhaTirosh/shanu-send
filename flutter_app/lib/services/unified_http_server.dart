@@ -51,6 +51,7 @@ class UnifiedHttpServer {
   HttpServer? _server;
   final _eventController = StreamController<ReceiverEvent>.broadcast();
   final Map<String, ReceiverSession> _sessions = {};
+  final Map<String, Completer<bool>> _pendingDecisions = {};
   final List<WebDropSharedFile> _sharedFiles = [];
 
   String alias = 'ShanuSend Device';
@@ -69,6 +70,16 @@ class UnifiedHttpServer {
 
   void clearSharedFiles() {
     _sharedFiles.clear();
+  }
+
+  /// The UI must call this in response to an 'incoming-request' event.
+  /// If nothing calls it, _handlePrepareUpload's timeout rejects the
+  /// transfer rather than hanging the sender or auto-accepting.
+  void respondToRequest(String sessionId, bool accept) {
+    final completer = _pendingDecisions.remove(sessionId);
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(accept);
+    }
   }
 
   Future<void> _initFingerprint() async {
@@ -162,8 +173,34 @@ class UnifiedHttpServer {
       final files = body['files'] as Map<String, dynamic>? ?? {};
 
       final sessionId = const Uuid().v4();
-      final tokens = <String, String>{};
+      final completer = Completer<bool>();
+      _pendingDecisions[sessionId] = completer;
 
+      if (!_eventController.isClosed) {
+        _eventController.add(ReceiverEvent('incoming-request', {
+          'sessionId': sessionId,
+          'senderAlias': senderAlias,
+          'files': files,
+        }));
+      }
+
+      // Block until the UI calls respondToRequest(). No listener attached
+      // (e.g. background isolate with no UI) means this times out and
+      // rejects rather than silently writing files to disk.
+      final accepted = await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => false,
+      );
+      _pendingDecisions.remove(sessionId);
+
+      if (!accepted) {
+        return Response.forbidden(
+          jsonEncode({'message': 'Transfer was declined by the receiver'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+
+      final tokens = <String, String>{};
       for (var fileId in files.keys) {
         tokens[fileId] = const Uuid().v4();
       }
@@ -175,14 +212,6 @@ class UnifiedHttpServer {
         tokens: tokens,
       );
       _sessions[sessionId] = session;
-
-      if (!_eventController.isClosed) {
-        _eventController.add(ReceiverEvent('incoming-request', {
-          'sessionId': sessionId,
-          'senderAlias': senderAlias,
-          'files': files,
-        }));
-      }
 
       return Response.ok(
         jsonEncode({

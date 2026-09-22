@@ -1,4 +1,36 @@
-# ShanuSend v2.5.4 Release Notes 🚀
+# ShanuSend Release Notes 🚀
+
+---
+
+### v2.5.5 — Bug-fix pass (pairing, remote control, scrcpy setup)
+
+This release fixes gaps found in a direct source audit — see `IMPLEMENTATION_PLAN.md` for the full findings. Previous
+release notes below describe the UI/feature surface as it existed at the time; some of what they call "zero mock"
+had gaps this pass closes:
+
+- **Pairing**: `shanu_connect_view.dart` and `desktop_phone_link_view.dart` previously accepted *any* typed 6-digit
+  number as a valid pairing PIN, with no verification. Replaced with a real generate-and-mutually-confirm flow, plus
+  a persisted trusted-device allow-list (`trusted_device_store.dart`).
+- **Device identity**: every install previously broadcast one of three different hardcoded literal device IDs
+  (`'mobile-remote-id'`, `'desktop-host-id'`, `'trackpad-remote-id'`) — meaning every phone looked identical to every
+  other phone for trust purposes. Replaced with a real persisted per-install UUID (`device_identity_service.dart`).
+- **Remote cursor control**: the desktop host never had a handler for incoming `shanuconnect.mousepad` packets at
+  all — the trackpad view sent them, but nothing on the receiving end acted on them. Added real cursor control
+  (`native_input_service.dart`: direct Win32 calls on Windows, `cliclick`/`xdotool` on macOS/Linux), gated behind the
+  new trusted-device check.
+- **Trackpad buttons**: Left/Right Click, Next/Prev Slide, and Play/Pause previously only updated local UI text and
+  sent nothing. They now send real packets.
+- **Scrcpy/ADB**: the device picker was a single hardcoded placeholder string, and launching scrcpy assumed it was
+  already on the system PATH. Added real `adb devices -l` polling, wireless ADB pairing, and a one-time setup flow
+  that downloads and caches `adb`/`scrcpy` (Windows) instead of failing silently when they're not preinstalled.
+- **Incoming transfers**: `prepare-upload` previously wrote incoming files to disk immediately with no user
+  confirmation. Added a real Accept/Decline prompt that the transfer now blocks on.
+- **Android cleartext HTTP**: added a network security config — LAN transfers were likely failing silently on
+  Android 9+ (API 28+) without it.
+
+---
+
+### v2.5.4
 
 Universal High-Speed File Sharing, Unified WebDrop Single-Port Engine, Phone Link Host Hub (Zero Mock Data), Native ScrcpyGUI Suite, 6-Digit SAS PIN Device Hub, and Cross-Platform Flutter Release.
 

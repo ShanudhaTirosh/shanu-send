@@ -4,43 +4,29 @@
 
 ![ShanuSend Banner](logo.png)
 
-**Universal Cross-Platform File Sharing, Phone Link & Screen Mirroring Ecosystem**
-*Native Support for LocalSend v2.1, Apple AirDrop, Google Quick Share, ShanuConnect P2P & ScrcpyGUI Suite*
+**Cross-platform file sharing, phone link, and screen mirroring — one Flutter app for desktop and mobile.**
 
-[![Build Windows & Desktop](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/ci.yml/badge.svg)](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/ci.yml)
-[![Build Android APK](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/build_android.yml/badge.svg)](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/build_android.yml)
-[![Flutter Build Matrix](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/flutter_build.yml/badge.svg)](https://github.com/ShanudhaTirosh/shanu-send/actions/workflows/flutter_build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[Features](#features) • [Architecture](#project-structure) • [Multi-Protocol Suite](#multi-protocol-suite) • [ScrcpyGUI Suite](#scrcpygui-suite-integration) • [Quick Start](#quick-start) • [Downloads](#downloads) • [License](#license)
+[Features](#features) • [Project Structure](#project-structure) • [Quick Start](#quick-start) • [Known Limitations](#known-limitations--in-progress) • [License](#license)
 
 </div>
 
 ---
 
+## Status
+
+This README describes what's actually implemented in `flutter_app/`, verified by reading the source — not aspirational copy. See
+[`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) for the full audit and the phased plan to close the remaining gaps, and
+[`STATUS.md`](STATUS.md) for a per-feature real/partial/planned breakdown.
+
 ## ✨ Features
 
-- **🌐 Universal Protocol Compatibility**:
-  - **LocalSend v2.1**: Wire-level compatibility with standard [LocalSend](https://localsend.org) clients across UDP multicast (`224.0.0.167:53317`) and HTTP endpoints.
-  - **Apple AirDrop**: Native mDNS (`_airdrop._tcp.local.`), HTTPS (`/Ask`, `/Upload`), and BLE advertisement payload handling.
-  - **Google Quick Share / Nearby Share**: mDNS (`_FC92._tcp.local.`), BLE GATT (`0xFE2C`), UKEY2 4-digit PIN verification, and streaming upload.
-  - **ShanuConnect (App-to-App P2P)**: Dual-compatible with ShanuConnect & KDE Connect protocol v7 on port 1716 with 6-digit SAS Security PIN pairing.
-  - **Unified WebDrop Portal**: Single-port HTTP server (`UnifiedHttpServer`) hosting zero-install browser file transfer portal at `http://<IP>:53317` & `http://<IP>:53317/webdrop` alongside LocalSend v2.1 API endpoints.
-- **📱 Phone Link & Workstation Host (`desktop_phone_link_view.dart`)**:
-  - **Zero Mock / Pure Live Event Stream**: Real-time packet listeners (`shanuconnect.notifications`, `shanuconnect.sms`, `shanuconnect.battery`, `shanuconnect.mpris`).
-  - **Synced Phone Notifications**: Live phone notification stream with inline reply support.
-  - **SMS Manager & Call Controls**: Read and send SMS messages via paired phone; incoming call alerts with answer/reject actions.
-  - **Phone Status Cards**: Live battery % and charging indicator, Wi-Fi status, and remote phone ringer trigger (`Find Phone`).
-  - **Bidirectional Clipboard Auto-Sync**: Text copied on phone or desktop instantly syncs across devices.
-- **📱 ScrcpyGUI Screen Mirroring Suite (`scrcpy_gui_view.dart`)**:
-  - **ADB Device Picker**: Wireless and USB ADB device discovery & selector.
-  - **Resolution Presets**: 720p, 1080p, and Original source resolutions.
-  - **Stream Tuning**: Bitrate controls (2 - 16 Mbps), FPS caps (30/60 FPS), and Video Codecs (H.264, H.265, AV1).
-  - **Display & Recording Toggles**: Stay Awake toggle, Turn Screen Off toggle, and MP4 Screen Recording capability.
-- **📱 Mobile Remote Controller & Integrated Device Hub (`shanu_connect_view.dart`)**:
-  - Continuous LAN discovery stream, top device switcher dropdown, 6-digit SAS Security PIN authentication modal prompt, multi-touch trackpad (gestures, tap-to-click, scroll), MPRIS media remote, presenter clicker, clipboard sync, and system commands.
-- **🔒 End-to-End Security**:
-  - Self-signed TLS certificates, fingerprint pinning, 6-digit SAS PIN confirmation, and blameless error handling.
+- **LocalSend v2.1 file transfer**: real HTTP server (`UnifiedHttpServer`) implementing `info` / `register` / `prepare-upload` / `upload` / `cancel`, with an Accept/Decline prompt gating every incoming transfer. Two-way "download mode" (serving files *to* a peer that requests them) isn't implemented yet — this app can receive pushed transfers and send its own, but doesn't yet expose the pull-style download endpoint.
+- **WebDrop**: zero-install browser transfer portal served from the same port (`http://<IP>:53317` / `/webdrop`) — works from Safari/Chrome without installing the app.
+- **ShanuConnect (KDE Connect-style remote control)**: real mutual pairing (both sides generate/compare a code and must explicitly confirm — no longer "type any 6 digits"), a persisted trusted-device allow-list, and real cursor control on the receiving desktop (Windows via direct Win32 calls; macOS/Linux via `cliclick`/`xdotool` when installed). Notifications/SMS/battery/MPRIS packet types are defined in the protocol but not all have a UI surface yet — check `IMPLEMENTATION_PLAN.md` for what's wired end-to-end today.
+- **Scrcpy screen mirroring**: the app manages its own copies of `adb`/`scrcpy` instead of assuming they're preinstalled — one-time setup downloads and caches Android Platform-Tools (all OSes) and scrcpy (Windows; macOS/Linux currently prompt for a package-manager install, since prebuilt binaries there depend on system libraries that vary by distro). Real `adb devices -l` polling drives the device picker, with wireless ADB pairing support.
+- **Rust core (`core/`)**: a substantial second implementation (LocalSend, AirDrop, Quick Share, ShanuConnect, TLS via `rustls`, real input simulation via `enigo`) lives in this repo but **is not currently linked into the Flutter app** — see Known Limitations.
 
 ---
 
@@ -48,85 +34,45 @@
 
 | Directory / File | Description |
 | :--- | :--- |
-| [`core/`](file:///c:/Users/tiros/OneDrive/Documents/coding/shanu-send/core) | **Rust Engine**: Multi-protocol server (LocalSend, AirDrop, Quick Share, ShanuConnect, WebDrop), mDNS responders, TLS crypto, and history store. |
-| [`app/`](file:///c:/Users/tiros/OneDrive/Documents/coding/shanu-send/app) | **Desktop Web Client (Tauri 2 + React 19)**: Native desktop interface with glassmorphism UI, 5 color themes, and English localization. |
-| [`flutter_app/`](file:///c:/Users/tiros/OneDrive/Documents/coding/shanu-send/flutter_app) | **Native Multi-Platform Application (Flutter)**: Universal Windows, Android, iOS, macOS, and Linux app featuring `UnifiedHttpServer`, Phone Link hub, Scrcpy GUI suite, and Remote Controller. |
-| [`.github/workflows/`](file:///c:/Users/tiros/.github/workflows) | **CI/CD Pipelines**: Automated multi-platform build matrix for Windows, Android APK, macOS, and Linux. |
+| [`core/`](core/) | Rust engine: LocalSend/AirDrop/Quick Share/ShanuConnect protocol logic, TLS, and `enigo`-based input simulation. **Not yet linked into `flutter_app/`** — see Known Limitations. |
+| [`flutter_app/`](flutter_app/) | The actual application — Windows, Android, iOS, macOS, and Linux from one Flutter codebase. Everything under Features above lives here. |
+| [`.github/workflows/`](.github/workflows/) | CI pipelines. Treat badge/status claims as accurate only as far as the workflow file itself verifies (see `STATUS.md`). |
 
----
-
-## ⚡ Multi-Protocol Suite
-
-All protocol services run simultaneously on app startup with zero manual configuration required:
-
-```
-                  ┌─────────────────────────────────────────┐
-                  │         ShanuSend Unified Engine        │
-                  └────┬───────────┬───────────┬───────────┬┘
-                       │           │           │           │
-                       ▼           ▼           ▼           ▼
-                 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-                 │ LocalSend│ │ Apple    │ │ Google   │ │ Shanu    │
-                 │ v2.1 &   │ │ AirDrop  │ │ QuickShare│ │ Connect  │
-                 │ WebDrop  │ │ (:8770)  │ │ (:5238)  │ │ (:1716)  │
-                 │ (:53317) │ └──────────┘ └──────────┘ └──────────┘
-                 └──────────┘
-```
-
----
-
-## 🎥 ScrcpyGUI Suite Integration
-
-Includes full parity with ScrcpyGUI controls:
-- **Wireless ADB Pairing**: Auto-discovery & native 6-digit PIN pairing modal.
-- **Resolution & Stream Customization**: Switch between 720p, 1080p, and native resolutions; adjust FPS (30/60) and bitrates (2-16 Mbps).
-- **Control Toggles**: Stay Awake during mirroring, turn phone screen off, and record stream to MP4.
+There is no `app/` (Tauri) directory in this repo — an earlier iteration of this project used Tauri for desktop, but the project has since consolidated onto Flutter for both desktop and mobile. References to a Tauri desktop client elsewhere (old docs, old issues) are stale.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Flutter Multi-Platform App (`flutter_app/`)
-
 ```bash
 cd flutter_app
 flutter pub get
-flutter run                       # Launch on desktop/mobile
-flutter build windows             # Build Windows Native Release Executable (.exe)
-flutter build apk --release       # Build Android APK
+flutter run                       # desktop or mobile, depending on target
+flutter build windows             # Windows release build
+flutter build apk --release       # Android APK
 ```
 
-### 2. Tauri 2 Desktop Client (`app/`)
+### Rust core (currently a standalone check only — not yet part of the app build)
 
 ```bash
-cd app
-npm install
-npm run dev      # Launch Web Dev Server (http://localhost:1420)
-npx tauri dev    # Launch Native Tauri Desktop Window
-npx tauri build  # Build Production MSI & Executable
-```
-
-### 3. Rust Engine Verification (`core/`)
-
-```bash
-cd app/src-tauri
+cd core
 cargo check
 ```
 
 ---
 
-## 📦 Downloads & Releases
+## Known Limitations / In Progress
 
-Pre-compiled production binaries and installers are generated automatically:
-- **Windows**: `shanu_send_flutter.exe` & `ShanuSend_2.5.4_x64-setup.exe`
-- **Android**: `app-release.apk`
-- **macOS / Linux**: Built via CI matrix
+- **Two engines, one used.** `core/` (Rust) has real TLS and real cross-platform input simulation (`enigo`) that `flutter_app/` doesn't use yet — the Flutter app has its own, less complete Dart implementations instead. Bridging via `flutter_rust_bridge` is the top item in `IMPLEMENTATION_PLAN.md`.
+- **Transport is plain HTTP today**, not TLS — `core/`'s TLS support isn't wired in yet. A network security config permits cleartext LAN traffic in the meantime (see `flutter_app/android/app/src/main/res/xml/network_security_config.xml` for why).
+- **ShanuConnect pairing is mutual-comparison, not cryptographic.** Both sides must confirm a shown code before trust is granted (a real fix over the previous free-text entry), but it isn't bound to a key exchange yet, so it doesn't protect against a spoofed sender on the same LAN. Real ECDH-backed pairing is planned once the Rust bridge lands.
+- **scrcpy auto-setup is Windows-only**; macOS/Linux users get install instructions (Homebrew/apt/dnf/pacman/Flatpak) instead of a silent download, since prebuilt binaries there depend on system libraries that vary by distro.
+- **Remote input on macOS/Linux depends on `cliclick`/`xdotool` being installed** — there's no bundled fallback yet.
 
-Check the latest builds on the [GitHub Releases](https://github.com/ShanudhaTirosh/shanu-send/releases) page.
+See `IMPLEMENTATION_PLAN.md` for the full audit this list is based on, and the phased plan to close each gap.
 
 ---
 
 ## 📄 License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
-
