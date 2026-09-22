@@ -191,11 +191,14 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
   }
 
   void _showToast(String msg) {
+    final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
         duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFF161E2E),
+        backgroundColor: theme.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -216,29 +219,31 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
       targetIp: targetIp,
     );
 
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161E2E),
-        title: Text('Pairing: ${_activeDevice?.alias ?? "Mobile Device"}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        backgroundColor: theme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Pairing: ${_activeDevice?.alias ?? "Mobile Device"}', style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "This code was sent to the phone. Only approve there if it matches — don't type a code in, compare it:",
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13),
             ),
             const SizedBox(height: 16),
             Center(
               child: Text(
                 code,
-                style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
+                style: TextStyle(color: theme.colorScheme.primary, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 8),
-            const Text('Waiting for the phone to respond…', style: TextStyle(color: Colors.white38, fontSize: 12)),
+            Text('Waiting for the phone to respond…', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 12)),
           ],
         ),
         actions: [
@@ -247,7 +252,7 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
               _pendingSasCode = null;
               Navigator.pop(ctx);
             },
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
           ),
         ],
       ),
@@ -292,22 +297,24 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
     }
 
     if (pair && sasCode != null && mounted) {
+      final theme = Theme.of(context);
       final approved = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF161E2E),
-          title: const Text('Pairing request', style: TextStyle(color: Colors.white, fontSize: 16)),
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Pairing request', style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('A device wants to pair. Confirm this code matches what it shows:',
-                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              Text('A device wants to pair. Confirm this code matches what it shows:',
+                  style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 13)),
               const SizedBox(height: 16),
               Center(
                 child: Text(sasCode,
-                    style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: theme.colorScheme.primary, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -318,7 +325,12 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
               child: const Text('Codes Match — Approve'),
             ),
           ],
@@ -344,6 +356,9 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -353,13 +368,22 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF161E2E),
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF283548)),
+              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
-                const Icon(Icons.smartphone_rounded, color: Color(0xFF38BDF8), size: 28),
+                Icon(Icons.smartphone_rounded, color: theme.colorScheme.primary, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -370,14 +394,14 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                           DropdownButtonHideUnderline(
                             child: DropdownButton<DeviceDto>(
                               value: _activeDevice,
-                              dropdownColor: const Color(0xFF161E2E),
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70),
+                              dropdownColor: theme.cardColor,
+                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
                               items: widget.devices.map((d) {
                                 return DropdownMenuItem<DeviceDto>(
                                   value: d,
                                   child: Text(
                                     d.alias,
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                    style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
                                 );
                               }).toList(),
@@ -387,20 +411,20 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                                   widget.onDeviceSelected?.call(val);
                                 }
                               },
-                              hint: const Text('Select Device', style: TextStyle(color: Colors.white)),
+                              hint: Text('Select Device', style: TextStyle(color: theme.colorScheme.onSurface)),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: _isPaired ? const Color(0xFF10B981).withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
+                              color: _isPaired ? const Color(0xFF10B981).withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               _isPaired ? 'CONNECTED' : 'UNPAIRED',
                               style: TextStyle(
-                                color: _isPaired ? const Color(0xFF10B981) : Colors.amber,
+                                color: _isPaired ? const Color(0xFF10B981) : Colors.amber[800],
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -410,7 +434,7 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                       ),
                       Text(
                         _activeDevice != null ? '${_activeDevice!.ip} • ${_activeDevice!.deviceModel}' : 'No target device selected',
-                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 12),
                       ),
                     ],
                   ),
@@ -431,8 +455,9 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                   icon: Icon(_isPaired ? Icons.check_circle_rounded : Icons.add_rounded, size: 18),
                   label: Text(_isPaired ? 'Paired' : '+ Pair New Device'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isPaired ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
-                    foregroundColor: const Color(0xFF090B11),
+                    backgroundColor: _isPaired ? const Color(0xFF10B981) : theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -459,7 +484,7 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
               Expanded(
                 child: _buildStatusMiniCard(
                   icon: Icons.wifi_rounded,
-                  iconColor: const Color(0xFF38BDF8),
+                  iconColor: theme.colorScheme.primary,
                   title: 'Wi-Fi Signal',
                   subtitle: _activeDevice != null ? 'Connected LAN' : 'Disconnected',
                 ),
@@ -489,9 +514,9 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
           // Tab Selector Header
           TabBar(
             controller: _tabController,
-            indicatorColor: const Color(0xFF38BDF8),
-            labelColor: const Color(0xFF38BDF8),
-            unselectedLabelColor: Colors.white54,
+            indicatorColor: theme.colorScheme.primary,
+            labelColor: theme.colorScheme.primary,
+            unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             tabs: const [
               Tab(icon: Icon(Icons.notifications_rounded), text: 'Notifications'),
               Tab(icon: Icon(Icons.music_note_rounded), text: 'Media Stream'),
@@ -526,14 +551,26 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
     required String subtitle,
     VoidCallback? onTap,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF161E2E),
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF283548)),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
         child: Row(
           children: [

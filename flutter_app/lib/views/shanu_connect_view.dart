@@ -95,7 +95,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
       SnackBar(
         content: Text(msg),
         duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -117,25 +117,25 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161E2E),
-        title: Text('Pairing: ${targetDev?.alias ?? _activeDeviceName}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        backgroundColor: Theme.of(context).cardTheme.color,
+        title: Text('Pairing: ${targetDev?.alias ?? _activeDeviceName}', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "This code was sent to the target device. Only approve there if it matches — don't type a code in, compare it:",
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7), fontSize: 13),
             ),
             const SizedBox(height: 16),
             Center(
               child: Text(
                 code,
-                style: const TextStyle(color: Colors.white, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 32, letterSpacing: 8, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 8),
-            const Text('Waiting for a response…', style: TextStyle(color: Colors.white38, fontSize: 12)),
+            Text('Waiting for a response…', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.4), fontSize: 12)),
           ],
         ),
         actions: [
@@ -145,7 +145,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
               setState(() => _isPairingRequested = false);
               Navigator.pop(ctx);
             },
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel'),
           ),
         ],
       ),
@@ -185,45 +185,45 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
   }
 
   void _showPairingHelpDialog() {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161E2E),
+        backgroundColor: theme.cardTheme.color,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.help_outline_rounded, color: Color(0xFF38BDF8)),
-            SizedBox(width: 8),
-            Text('Device Hub & Pairing Guide', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Icon(Icons.help_outline_rounded, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Device Hub & Pairing Guide', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Step 1: Discover & Select Device', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
-              SizedBox(height: 4),
-              Text('Use the top Device Hub selector to pick any available device on your local Wi-Fi/LAN network.', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              SizedBox(height: 12),
-              Text('Step 2: Initiate SAS Pairing', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
-              SizedBox(height: 4),
-              Text('Tap the "+ Pair Device" button to trigger the 6-digit Short Authentication String (SAS) prompt.', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              SizedBox(height: 12),
-              Text('Step 3: Enter 6-Digit PIN', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
-              SizedBox(height: 4),
-              Text('Check the target device for the 6-digit Security PIN code shown on screen or in system notifications.', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              SizedBox(height: 12),
-              Text('Step 4: Control & Switch Devices', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 14)),
-              SizedBox(height: 4),
-              Text('Once approved, remote touchpad, media control, presenter clicker, and commands are active! You can switch target devices at any time.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              Text('Step 1: Discover & Select Device', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              const Text('Use the top Device Hub selector to pick any available device on your local Wi-Fi/LAN network.', style: TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              Text('Step 2: Initiate SAS Pairing', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              const Text('Tap the "+ Pair Device" button to trigger the 6-digit Short Authentication String (SAS) prompt.', style: TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              Text('Step 3: Enter 6-Digit PIN', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              const Text('Check the target device for the 6-digit Security PIN code shown on screen or in system notifications.', style: TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              Text('Step 4: Control & Switch Devices', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              const Text('Once approved, remote touchpad, media control, presenter clicker, and commands are active! You can switch target devices at any time.', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF090B11)),
             child: const Text('Got It!'),
           ),
         ],
@@ -233,10 +233,11 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF090B11),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF090B11),
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,19 +246,19 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
               children: [
                 Text(
                   _activeDeviceName,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _isPaired ? const Color(0xFF10B981).withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
+                    color: _isPaired ? const Color(0xFF00D285).withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     _isPaired ? 'CONNECTED' : (_isPairingRequested ? 'PAIRING...' : 'UNPAIRED'),
                     style: TextStyle(
-                      color: _isPaired ? const Color(0xFF10B981) : (_isPairingRequested ? const Color(0xFF38BDF8) : Colors.amber),
+                      color: _isPaired ? const Color(0xFF00D285) : (_isPairingRequested ? theme.colorScheme.primary : Colors.amber),
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
@@ -267,13 +268,13 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
             ),
             Text(
               _isPaired ? 'ShanuConnect Authenticated Session' : (_isPairingRequested ? 'PIN confirmation pending...' : 'Select or pair target device'),
-              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
+              style: TextStyle(color: theme.colorScheme.primary, fontSize: 11),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF38BDF8)),
+            icon: Icon(Icons.help_outline_rounded, color: theme.colorScheme.primary),
             tooltip: 'Pairing Instructions',
             onPressed: _showPairingHelpDialog,
           ),
@@ -284,8 +285,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
               icon: Icon(_isPaired ? Icons.verified_rounded : Icons.link_rounded, size: 16),
               label: Text(_isPaired ? 'Paired' : 'Connect & Pair'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isPaired ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
-                foregroundColor: const Color(0xFF090B11),
+                backgroundColor: _isPaired ? const Color(0xFF00D285) : theme.colorScheme.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
@@ -294,17 +294,17 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: const Color(0xFF38BDF8),
-          labelColor: const Color(0xFF38BDF8),
-          unselectedLabelColor: Colors.white54,
+          indicatorColor: theme.colorScheme.primary,
+          labelColor: theme.colorScheme.primary,
+          unselectedLabelColor: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
           tabs: const [
-            Tab(icon: Icon(Icons.mouse_rounded), text: 'Touchpad'),
-            Tab(icon: Icon(Icons.play_circle_fill_rounded), text: 'Media'),
-            Tab(icon: Icon(Icons.terminal_rounded), text: 'Commands'),
-            Tab(icon: Icon(Icons.assignment_rounded), text: 'Clipboard'),
+            Tab(icon: Icon(Icons.touch_app_rounded), text: 'Touchpad'),
             Tab(icon: Icon(Icons.slideshow_rounded), text: 'Presenter'),
-            Tab(icon: Icon(Icons.notifications_rounded), text: 'Notifications'),
-            Tab(icon: Icon(Icons.phone_in_talk_rounded), text: 'Calls'),
+            Tab(icon: Icon(Icons.play_circle_fill_rounded), text: 'Media'),
+            Tab(icon: Icon(Icons.assignment_rounded), text: 'Clipboard'),
+            Tab(icon: Icon(Icons.volume_up_rounded), text: 'Volume'),
+            Tab(icon: Icon(Icons.ring_volume_rounded), text: 'Find Phone'),
+            Tab(icon: Icon(Icons.terminal_rounded), text: 'Commands'),
           ],
         ),
       ),
@@ -319,30 +319,30 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
 
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF161E2E),
-                  border: Border(bottom: BorderSide(color: Color(0xFF283548))),
+                decoration: BoxDecoration(
+                  color: theme.cardTheme.color,
+                  border: Border(bottom: BorderSide(color: theme.colorScheme.surfaceContainerHighest)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.devices_rounded, color: Color(0xFF38BDF8), size: 20),
+                    Icon(Icons.devices_rounded, color: theme.colorScheme.primary, size: 20),
                     const SizedBox(width: 8),
-                    const Text('Target Device:', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const Text('Target Device:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<DeviceDto>(
                           value: _selectedDevice,
-                          dropdownColor: const Color(0xFF161E2E),
+                          dropdownColor: theme.cardTheme.color,
                           isExpanded: true,
-                          icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF38BDF8)),
-                          hint: Text(_activeDeviceName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                          icon: Icon(Icons.arrow_drop_down_rounded, color: theme.colorScheme.primary),
+                          hint: Text(_activeDeviceName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                           items: devices.map((d) {
                             return DropdownMenuItem<DeviceDto>(
                               value: d,
                               child: Text(
                                 '${d.alias} (${d.ip})',
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             );
                           }).toList(),
@@ -361,7 +361,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.refresh_rounded, color: Color(0xFF94A3B8), size: 20),
+                      icon: Icon(Icons.refresh_rounded, color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5), size: 20),
                       tooltip: 'Scan Discovered Devices',
                       onPressed: () => _discoveryService.scanSubnet(),
                     ),
@@ -394,21 +394,20 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                             HapticFeedback.mediumImpact();
                             _shanuService.sendMousepad(0, 0, click: 'double', targetIp: _activeTargetIp);
                           },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF161E2E),
+                          child: Card(
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
+                              side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                             ),
                             child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.touch_app_rounded, size: 64, color: Color(0xFF38BDF8)),
+                                  Icon(Icons.touch_app_rounded, size: 64, color: theme.colorScheme.primary),
                                   const SizedBox(height: 12),
-                                  Text('Trackpad Surface for $_activeDeviceName', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  Text('Trackpad Surface for $_activeDeviceName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 4),
-                                  const Text('Drag to move Desktop cursor • Tap to Click', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                  Text('Drag to move Desktop cursor • Tap to Click', style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6), fontSize: 12)),
                                 ],
                               ),
                             ),
@@ -425,10 +424,9 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                                 _shanuService.sendMousepad(0, 0, click: 'left', targetIp: _activeTargetIp);
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E293B),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                               ),
-                              child: const Text('Left Click', style: TextStyle(color: Colors.white)),
+                              child: const Text('Left Click'),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -439,10 +437,9 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                                 _shanuService.sendMousepad(0, 0, click: 'right', targetIp: _activeTargetIp);
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E293B),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                               ),
-                              child: const Text('Right Click', style: TextStyle(color: Colors.white)),
+                              child: const Text('Right Click'),
                             ),
                           ),
                         ],
@@ -451,7 +448,22 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                   ),
                 ),
 
-                // 2. Media Remote
+                // 2. Presenter
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.slideshow_rounded, size: 64, color: theme.colorScheme.primary),
+                      const SizedBox(height: 16),
+                      Text('Presenter Mode for $_activeDeviceName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      const Text('Use volume buttons or gestures to control slides.', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                ),
+
+                // 3. Media Remote
                 Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(

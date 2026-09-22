@@ -8,12 +8,20 @@ import '../models/file_dto.dart';
 
 class TransferService {
   final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(minutes: 60),
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(hours: 2),
+    sendTimeout: const Duration(hours: 2),
   ));
 
   final _statusController = StreamController<TransferStatus>.broadcast();
   Stream<TransferStatus> get statusStream => _statusController.stream;
+
+  CancelToken? _activeCancelToken;
+
+  void cancelActiveTransfer() {
+    _activeCancelToken?.cancel('Transfer cancelled by user');
+    _activeCancelToken = null;
+  }
 
   Future<bool> sendFiles({
     required DeviceDto targetDevice,
@@ -21,6 +29,7 @@ class TransferService {
   }) async {
     final sessionId = const Uuid().v4();
     final baseUrl = 'http://${targetDevice.ip}:${targetDevice.port}';
+    _activeCancelToken = CancelToken();
 
     // 1. Prepare upload request
     final fileMap = <String, Map<String, dynamic>>{};
@@ -33,10 +42,10 @@ class TransferService {
         '$baseUrl/api/localsend/v2/prepare-upload',
         data: {
           'info': {
-            'alias': 'ShanuSend Flutter',
+            'alias': 'ShanuSend Pro',
             'version': '2.1',
             'deviceModel': Platform.operatingSystem,
-            'deviceType': 'mobile',
+            'deviceType': (Platform.isAndroid || Platform.isIOS) ? 'mobile' : 'desktop',
             'fingerprint': 'shanu_flutter_fp',
             'port': 53317,
             'protocol': 'http',
@@ -44,6 +53,7 @@ class TransferService {
           },
           'files': fileMap,
         },
+        cancelToken: _activeCancelToken,
       );
 
       if (prepareResponse.statusCode != 200 || prepareResponse.data == null) {
@@ -62,7 +72,7 @@ class TransferService {
         });
       }
 
-      // 2. Stream files with live speed meter
+      // 2. Stream files safely from disk without loading full bytes into memory (prevents OOM)
       for (var file in files) {
         final token = tokens[file.id];
         if (token == null || file.path == null) continue;
@@ -71,9 +81,9 @@ class TransferService {
         if (!await diskFile.exists()) continue;
 
         final fileSize = await diskFile.length();
-        final bytes = await diskFile.readAsBytes();
         final startTime = DateTime.now();
 
+        // Use stream direct from file to avoid loading large files into RAM
         await _dio.post(
           '$baseUrl/api/localsend/v2/upload',
           queryParameters: {
@@ -81,7 +91,8 @@ class TransferService {
             'fileId': file.id,
             'token': token,
           },
-          data: Stream.fromIterable([bytes]),
+          data: diskFile.openRead(), // Stream chunked from disk directly
+          cancelToken: _activeCancelToken,
           options: Options(
             headers: {
               Headers.contentLengthHeader: fileSize,
@@ -89,8 +100,8 @@ class TransferService {
             },
           ),
           onSendProgress: (sent, total) {
-            final elapsed = DateTime.now().difference(startTime).inMilliseconds / 1000.0;
-            final speedBytesPerSec = elapsed > 0 ? (sent / elapsed) : 0.0;
+            final elapsedSec = DateTime.now().difference(startTime).inMilliseconds / 1000.0;
+            final speedBytesPerSec = elapsedSec > 0.1 ? (sent / elapsedSec) : 0.0;
             final speedMBps = speedBytesPerSec / (1024 * 1024);
             final remainingBytes = total - sent;
             final etaSeconds = speedBytesPerSec > 0 ? (remainingBytes / speedBytesPerSec).round() : 0;
@@ -101,7 +112,7 @@ class TransferService {
                 fileName: file.fileName,
                 receivedBytes: sent,
                 totalBytes: total,
-                speedMBps: speedMBps,
+                speedMBps: double.parse(speedMBps.toStringAsFixed(2)),
                 etaSeconds: etaSeconds,
                 isCompleted: sent >= total,
               ));
@@ -110,6 +121,7 @@ class TransferService {
         );
       }
 
+      _activeCancelToken = null;
       return true;
     } catch (e) {
       if (!_statusController.isClosed) {
@@ -123,6 +135,7 @@ class TransferService {
           isFailed: true,
         ));
       }
+      _activeCancelToken = null;
       return false;
     }
   }

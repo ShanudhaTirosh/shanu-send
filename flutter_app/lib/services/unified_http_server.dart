@@ -446,16 +446,15 @@ class UnifiedHttpServer {
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-dark: #07090e;
-    --card-bg: rgba(18, 26, 42, 0.85);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-hover: rgba(56, 189, 248, 0.4);
-    --accent: #00d285; /* LocalSend Emerald */
-    --accent-glow: rgba(0, 210, 133, 0.25);
-    --sky: #38bdf8;
-    --indigo: #6366f1;
-    --text-primary: #f8fafc;
-    --text-muted: #94a3b8;
+    --bg-gradient: radial-gradient(circle at 50% 0%, #EBF3FE 0%, #F4F7FC 65%);
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --border-color: #E2E8F0;
+    --border-hover: rgba(40, 103, 228, 0.4);
+    --accent: #2867E4; /* Royal Electric Blue */
+    --accent-light: #4F8CF6;
+    --accent-glow: rgba(40, 103, 228, 0.18);
+    --text-primary: #0F172A;
+    --text-muted: #64748B;
     --card-radius: 24px;
   }
 
@@ -463,7 +462,7 @@ class UnifiedHttpServer {
 
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: radial-gradient(circle at 50% 0%, #172554 0%, #07090e 65%);
+    background: var(--bg-gradient);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
@@ -484,7 +483,7 @@ class UnifiedHttpServer {
     max-width: 520px;
     width: 100%;
     text-align: center;
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 210, 133, 0.08);
+    box-shadow: 0 20px 40px -12px rgba(40, 103, 228, 0.08), 0 0 1px rgba(0, 0, 0, 0.05);
   }
 
   .brand {
@@ -496,9 +495,9 @@ class UnifiedHttpServer {
   }
 
   .brand-icon {
-    width: 44px;
-    height: 44px;
-    background: linear-gradient(135deg, #00d285, #0284c7);
+    width: 46px;
+    height: 46px;
+    background: linear-gradient(135deg, #2867E4, #4F8CF6);
     border-radius: 14px;
     display: flex;
     align-items: center;
@@ -512,9 +511,7 @@ class UnifiedHttpServer {
     font-size: 24px;
     font-weight: 800;
     letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #ffffff 30%, #94a3b8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
   }
 
   .subtitle {
@@ -527,7 +524,7 @@ class UnifiedHttpServer {
 
   .nav-tabs {
     display: flex;
-    background: rgba(15, 23, 42, 0.8);
+    background: #F1F5F9;
     padding: 5px;
     border-radius: 16px;
     margin-bottom: 24px;
@@ -552,10 +549,10 @@ class UnifiedHttpServer {
   }
 
   .tab-btn.active {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    background: #FFFFFF;
     color: var(--accent);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 12px var(--accent-glow);
-    border: 1px solid rgba(0, 210, 133, 0.2);
+    box-shadow: 0 4px 12px rgba(40, 103, 228, 0.12);
+    border: 1px solid rgba(40, 103, 228, 0.15);
   }
 
   .tab-content { display: none; }
@@ -567,12 +564,12 @@ class UnifiedHttpServer {
   }
 
   .dropzone {
-    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border: 2px dashed rgba(40, 103, 228, 0.25);
     border-radius: 20px;
     padding: 36px 20px;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(40, 103, 228, 0.02);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -580,14 +577,14 @@ class UnifiedHttpServer {
 
   .dropzone:hover, .dropzone.dragover {
     border-color: var(--accent);
-    background: rgba(0, 210, 133, 0.06);
+    background: rgba(40, 103, 228, 0.06);
     transform: scale(1.01);
   }
 
   .dropzone-icon {
     width: 56px;
     height: 56px;
-    background: rgba(0, 210, 133, 0.12);
+    background: rgba(40, 103, 228, 0.1);
     border-radius: 16px;
     display: flex;
     align-items: center;
@@ -597,7 +594,7 @@ class UnifiedHttpServer {
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #00d285, #059669);
+    background: linear-gradient(135deg, #2867E4, #1D4ED8);
     color: #ffffff;
     border: none;
     padding: 15px 24px;
@@ -625,18 +622,17 @@ class UnifiedHttpServer {
 
   .progress-wrap {
     width: 100%;
-    background: rgba(30, 41, 59, 0.8);
+    background: #E2E8F0;
     border-radius: 999px;
     height: 10px;
     margin-top: 18px;
     overflow: hidden;
     display: none;
-    border: 1px solid var(--border-color);
   }
 
   .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #00d285, #38bdf8);
+    background: linear-gradient(90deg, #2867E4, #4F8CF6);
     width: 0%;
     transition: width 0.15s ease-out;
     border-radius: 999px;
@@ -664,14 +660,14 @@ class UnifiedHttpServer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(15, 23, 42, 0.7);
+    background: #F8FAFC;
     padding: 10px 14px;
     border-radius: 12px;
     font-size: 13px;
     border: 1px solid var(--border-color);
   }
 
-  .queue-name { font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .queue-name { font-weight: 600; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
   .queue-size { color: var(--text-muted); font-size: 11.5px; }
 
   .file-list {
@@ -687,23 +683,23 @@ class UnifiedHttpServer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: rgba(15, 23, 42, 0.7);
+    background: #F8FAFC;
     padding: 14px 16px;
     border-radius: 14px;
     border: 1px solid var(--border-color);
     transition: border-color 0.2s;
   }
 
-  .file-item:hover { border-color: rgba(56, 189, 248, 0.3); }
+  .file-item:hover { border-color: rgba(40, 103, 228, 0.3); }
 
   .file-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-  .file-name { font-size: 14px; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .file-name { font-size: 14px; font-weight: 600; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
   .file-meta { font-size: 12px; color: var(--text-muted); }
 
   .dl-btn {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.15));
-    color: var(--sky);
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    background: linear-gradient(135deg, rgba(40, 103, 228, 0.1), rgba(79, 140, 246, 0.1));
+    color: var(--accent);
+    border: 1px solid rgba(40, 103, 228, 0.2);
     padding: 8px 16px;
     border-radius: 10px;
     font-size: 12.5px;
@@ -717,9 +713,9 @@ class UnifiedHttpServer {
   }
 
   .dl-btn:hover {
-    background: var(--sky);
-    color: #07090e;
-    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 4px 12px var(--accent-glow);
   }
 
   .empty-state {
@@ -737,7 +733,7 @@ class UnifiedHttpServer {
   footer {
     margin-top: 24px;
     font-size: 12px;
-    color: rgba(148, 163, 184, 0.6);
+    color: var(--text-muted);
   }
 </style>
 </head>
@@ -769,7 +765,7 @@ class UnifiedHttpServer {
       <div class="dropzone-icon">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       </div>
-      <div style="font-weight: 700; color: #f1f5f9; font-size: 15px;">Choose or Drag files here</div>
+      <div style="font-weight: 700; color: #0F172A; font-size: 15px;">Choose or Drag files here</div>
       <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Supports videos, photos, archives & documents</div>
     </div>
     <input type="file" id="fi" multiple style="display:none" onchange="handleFileSelect()">
@@ -898,7 +894,7 @@ class UnifiedHttpServer {
 
     xhr.onload = () => {
       if (xhr.status === 200) {
-        status.innerHTML = `<span style="color:#00d285">✓ Files uploaded successfully! Saved to ShanuSend Downloads.</span>`;
+        status.innerHTML = `<span style="color:#2867E4">✓ Files uploaded successfully! Saved to ShanuSend Downloads.</span>`;
         bar.style.width = '100%';
         selectedFiles = [];
         renderQueue();

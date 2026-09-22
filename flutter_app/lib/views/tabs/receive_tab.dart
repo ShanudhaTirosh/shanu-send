@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/file_dto.dart';
 import '../../widgets/speed_badge.dart';
 
-class ReceiveTab extends StatelessWidget {
+class ReceiveTab extends StatefulWidget {
   final String? localIp;
   final String deviceAlias;
   final bool autoAccept;
@@ -21,6 +21,33 @@ class ReceiveTab extends StatelessWidget {
     required this.onOpenWebDrop,
     this.activeTransfer,
   });
+
+  @override
+  State<ReceiveTab> createState() => _ReceiveTabState();
+}
+
+class _ReceiveTabState extends State<ReceiveTab> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   String _getPlatformName() {
     if (kIsWeb) return 'Web Browser';
@@ -50,52 +77,60 @@ class ReceiveTab extends StatelessWidget {
         children: [
           const SizedBox(height: 12),
 
-          // Central Device Avatar & Alias Card
+          // Central Device Avatar & Alias Card with Radar Pulse Animation
           Card(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 36.0, horizontal: 24.0),
               child: Column(
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 110,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.primary,
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.primary.withValues(alpha: 0.35),
-                              blurRadius: 20,
-                              spreadRadius: 2,
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Transform.scale(
+                            scale: _pulseAnimation.value,
+                            child: Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Icon(
-                          _getPlatformIcon(),
-                          size: 42,
-                          color: isDark ? const Color(0xFF07090E) : Colors.white,
-                        ),
-                      ),
-                    ],
+                          ),
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: theme.colorScheme.primary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                                  blurRadius: 20,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _getPlatformIcon(),
+                              size: 42,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   Text(
-                    deviceAlias,
+                    widget.deviceAlias,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
@@ -106,20 +141,20 @@ class ReceiveTab extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 8,
-                        height: 8,
+                        width: 9,
+                        height: 9,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Color(0xFF10B981),
+                          color: Color(0xFF00D285),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${_getPlatformName()} • ${localIp ?? "Detecting IP..."}',
+                        '${_getPlatformName()} • ${widget.localIp ?? "Detecting IP..."}',
                         style: TextStyle(
                           color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                           fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -156,9 +191,9 @@ class ReceiveTab extends StatelessWidget {
                     ),
                   ),
                   Switch(
-                    value: autoAccept,
+                    value: widget.autoAccept,
                     activeColor: theme.colorScheme.primary,
-                    onChanged: onAutoAcceptChanged,
+                    onChanged: widget.onAutoAcceptChanged,
                   ),
                 ],
               ),
@@ -169,7 +204,7 @@ class ReceiveTab extends StatelessWidget {
 
           // WebDrop Portal Button Card
           InkWell(
-            onTap: onOpenWebDrop,
+            onTap: widget.onOpenWebDrop,
             borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -197,7 +232,7 @@ class ReceiveTab extends StatelessWidget {
                     ),
                     child: const Icon(
                       Icons.qr_code_2_rounded,
-                      color: Color(0xFF07090E),
+                      color: Colors.white,
                       size: 26,
                     ),
                   ),
@@ -230,9 +265,9 @@ class ReceiveTab extends StatelessWidget {
             ),
           ),
 
-          if (activeTransfer != null) ...[
+          if (widget.activeTransfer != null) ...[
             const SizedBox(height: 24),
-            SpeedBadge(status: activeTransfer!),
+            SpeedBadge(status: widget.activeTransfer!),
           ],
         ],
       ),

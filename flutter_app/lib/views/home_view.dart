@@ -1,12 +1,15 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../models/device_dto.dart';
 import '../models/file_dto.dart';
 import '../services/discovery_service.dart';
 import '../services/transfer_service.dart';
 import '../services/unified_http_server.dart';
 import '../services/notification_service.dart';
+import '../services/tray_service.dart';
+import '../services/clipboard_sync_service.dart';
 import '../widgets/webdrop_modal.dart';
 
 import 'tabs/receive_tab.dart';
@@ -17,7 +20,12 @@ import 'desktop_phone_link_view.dart';
 import 'scrcpy_gui_view.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  final List<String> initialFiles;
+
+  const HomeView({
+    super.key,
+    this.initialFiles = const [],
+  });
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -27,20 +35,48 @@ class _HomeViewState extends State<HomeView> {
   final DiscoveryService _discoveryService = DiscoveryService();
   final TransferService _transferService = TransferService();
   final UnifiedHttpServer _httpServer = UnifiedHttpServer();
+  final TrayService _trayService = TrayService();
+  final ClipboardSyncService _clipboardSyncService = ClipboardSyncService();
 
   int _currentNavIndex = 0;
   String? _localIp;
   String _deviceAlias = 'ShanuSend Device';
   bool _autoAccept = false;
+  bool _autoSyncClipboard = false;
   TransferStatus? _activeTransfer;
   DeviceDto? _selectedDevice;
+  final List<FileDto> _prepopulatedFiles = [];
 
   bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
   @override
   void initState() {
     super.initState();
+    _handleInitialFiles();
     _initServices();
+  }
+
+  void _handleInitialFiles() {
+    if (widget.initialFiles.isNotEmpty) {
+      for (final path in widget.initialFiles) {
+        final f = File(path);
+        if (f.existsSync()) {
+          final stat = f.statSync();
+          _prepopulatedFiles.add(
+            FileDto(
+              id: const Uuid().v4(),
+              fileName: f.path.split(Platform.pathSeparator).last,
+              size: stat.size,
+              fileType: 'file',
+              path: f.path,
+            ),
+          );
+        }
+      }
+      if (_prepopulatedFiles.isNotEmpty) {
+        _currentNavIndex = 1; // Switch directly to SendTab
+      }
+    }
   }
 
   Future<void> _initServices() async {
@@ -53,6 +89,15 @@ class _HomeViewState extends State<HomeView> {
     // Start Unified HTTP Server on port 53317 (handles LocalSend API AND WebDrop Browser HTML)
     await _httpServer.startServer();
     await NotificationService().initialize();
+
+    // Initialize System Tray for Desktop
+    await _trayService.initialize(
+      onOpenWebDrop: _openWebDropModal,
+      onToggleAutoAccept: () {
+        setState(() => _autoAccept = !_autoAccept);
+      },
+      autoAccept: _autoAccept,
+    );
 
     // Continuous LAN Discovery
     _discoveryService.scanSubnet();
@@ -134,6 +179,25 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
+  void _toggleAutoSyncClipboard(bool enable) {
+    setState(() => _autoSyncClipboard = enable);
+    if (enable) {
+      _clipboardSyncService.startAutoSync(
+        onClipboardChanged: (text) {
+          // If a connected device exists, broadcast clipboard packet
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Clipboard text updated & synced across devices'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+      );
+    } else {
+      _clipboardSyncService.stopAutoSync();
+    }
+  }
+
   String _getPlatformPrefix() {
     if (kIsWeb) return 'Web Drop';
     if (Platform.isWindows) return 'Windows PC';
@@ -149,6 +213,8 @@ class _HomeViewState extends State<HomeView> {
     _discoveryService.dispose();
     _transferService.dispose();
     _httpServer.dispose();
+    _trayService.dispose();
+    _clipboardSyncService.dispose();
     super.dispose();
   }
 
@@ -230,7 +296,10 @@ class _HomeViewState extends State<HomeView> {
               localIp: _localIp,
               deviceAlias: _deviceAlias,
               autoAccept: _autoAccept,
-              onAutoAcceptChanged: (v) => setState(() => _autoAccept = v),
+              onAutoAcceptChanged: (v) {
+                setState(() => _autoAccept = v);
+                _trayService.updateContextMenu(v);
+              },
               onOpenWebDrop: _openWebDropModal,
               activeTransfer: _activeTransfer,
             ),
@@ -258,6 +327,8 @@ class _HomeViewState extends State<HomeView> {
             SettingsTab(
               deviceAlias: _deviceAlias,
               onAliasChanged: (alias) => setState(() => _deviceAlias = alias),
+              autoSyncClipboard: _autoSyncClipboard,
+              onAutoSyncClipboardChanged: _toggleAutoSyncClipboard,
               onOpenWebDrop: _openWebDropModal,
             ),
           ]
@@ -266,7 +337,10 @@ class _HomeViewState extends State<HomeView> {
               localIp: _localIp,
               deviceAlias: _deviceAlias,
               autoAccept: _autoAccept,
-              onAutoAcceptChanged: (v) => setState(() => _autoAccept = v),
+              onAutoAcceptChanged: (v) {
+                setState(() => _autoAccept = v);
+                _trayService.updateContextMenu(v);
+              },
               onOpenWebDrop: _openWebDropModal,
               activeTransfer: _activeTransfer,
             ),
@@ -292,6 +366,8 @@ class _HomeViewState extends State<HomeView> {
             SettingsTab(
               deviceAlias: _deviceAlias,
               onAliasChanged: (alias) => setState(() => _deviceAlias = alias),
+              autoSyncClipboard: _autoSyncClipboard,
+              onAutoSyncClipboardChanged: _toggleAutoSyncClipboard,
               onOpenWebDrop: _openWebDropModal,
             ),
           ];
@@ -306,11 +382,11 @@ class _HomeViewState extends State<HomeView> {
                 color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.bolt_rounded, color: Color(0xFF07090E), size: 22),
+              child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 10),
             const Text(
-              'ShanuSend',
+              'ShanuSend Pro',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
             ),
           ],
@@ -383,16 +459,20 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
-                  child: IndexedStack(
-                    index: _currentNavIndex,
-                    children: pages,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: pages[_currentNavIndex],
                   ),
                 ),
               ],
             )
-          : IndexedStack(
-              index: _currentNavIndex,
-              children: pages,
+          : AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: pages[_currentNavIndex],
             ),
       bottomNavigationBar: isWideScreen
           ? null

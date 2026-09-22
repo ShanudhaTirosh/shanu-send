@@ -1,14 +1,20 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import '../../services/shell_integration_service.dart';
 
 class SettingsTab extends StatefulWidget {
   final String deviceAlias;
   final ValueChanged<String> onAliasChanged;
+  final bool autoSyncClipboard;
+  final ValueChanged<bool> onAutoSyncClipboardChanged;
   final VoidCallback onOpenWebDrop;
 
   const SettingsTab({
     super.key,
     required this.deviceAlias,
     required this.onAliasChanged,
+    required this.autoSyncClipboard,
+    required this.onAutoSyncClipboardChanged,
     required this.onOpenWebDrop,
   });
 
@@ -18,11 +24,44 @@ class SettingsTab extends StatefulWidget {
 
 class _SettingsTabState extends State<SettingsTab> {
   late TextEditingController _aliasController;
+  bool _contextMenuRegistered = false;
 
   @override
   void initState() {
     super.initState();
     _aliasController = TextEditingController(text: widget.deviceAlias);
+    _checkContextMenuStatus();
+  }
+
+  Future<void> _checkContextMenuStatus() async {
+    if (ShellIntegrationService.isWindows) {
+      final reg = await ShellIntegrationService.isContextMenuRegistered();
+      if (mounted) setState(() => _contextMenuRegistered = reg);
+    }
+  }
+
+  Future<void> _toggleContextMenu(bool enable) async {
+    if (!ShellIntegrationService.isWindows) return;
+    bool success;
+    if (enable) {
+      success = await ShellIntegrationService.registerContextMenu();
+    } else {
+      success = await ShellIntegrationService.unregisterContextMenu();
+    }
+    if (success) {
+      setState(() => _contextMenuRegistered = enable);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              enable
+                  ? 'Added "Send with ShanuSend" to Windows Right-Click Menu!'
+                  : 'Removed from Windows Right-Click Menu',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -41,7 +80,7 @@ class _SettingsTabState extends State<SettingsTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Settings',
+            'Settings & OS Integration',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -98,20 +137,61 @@ class _SettingsTabState extends State<SettingsTab> {
 
           const SizedBox(height: 16),
 
+          // Day-to-Day Native Features Card
+          Card(
+            child: Column(
+              children: [
+                if (Platform.isWindows) ...[
+                  SwitchListTile(
+                    secondary: const Icon(Icons.mouse_rounded),
+                    title: const Text('Windows Explorer Right-Click Menu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: const Text('Add "Send with ShanuSend" to right-click shell menu'),
+                    value: _contextMenuRegistered,
+                    onChanged: _toggleContextMenu,
+                  ),
+                  const Divider(height: 1, indent: 56),
+                ],
+                SwitchListTile(
+                  secondary: const Icon(Icons.assignment_rounded),
+                  title: const Text('Automatic Real-Time Clipboard Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text('Sync desktop & mobile clipboard automatically'),
+                  value: widget.autoSyncClipboard,
+                  onChanged: widget.onAutoSyncClipboardChanged,
+                ),
+                const Divider(height: 1, indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.screen_lock_portrait_rounded),
+                  title: const Text('Minimize to System Tray on Close', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text('Keep server & connection running in background'),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('Active', style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
           // Network & Port Config Card
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.numbers_rounded),
-                  title: const Text('Default Port', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text('53317 (Standard LocalSend Port)'),
+                const ListTile(
+                  leading: Icon(Icons.numbers_rounded),
+                  title: Text('Default Port', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Text('53317 (Standard LocalSend Port)'),
                 ),
                 const Divider(height: 1, indent: 56),
-                ListTile(
-                  leading: const Icon(Icons.radar_rounded),
-                  title: const Text('Multicast Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text('224.0.0.167'),
+                const ListTile(
+                  leading: Icon(Icons.radar_rounded),
+                  title: Text('Multicast Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Text('224.0.0.167'),
                 ),
                 const Divider(height: 1, indent: 56),
                 ListTile(
@@ -122,17 +202,6 @@ class _SettingsTabState extends State<SettingsTab> {
                   onTap: widget.onOpenWebDrop,
                 ),
               ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Storage Directory Card
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.folder_special_rounded),
-              title: const Text('Downloads Folder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: const Text('Documents/ShanuSendDownloads'),
             ),
           ),
 
@@ -148,7 +217,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     Icon(Icons.bolt_rounded, color: theme.colorScheme.primary, size: 24),
                     const SizedBox(width: 6),
                     const Text(
-                      'ShanuSend v2.1',
+                      'ShanuSend v2.1 Pro',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],

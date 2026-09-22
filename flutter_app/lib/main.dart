@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'views/home_view.dart';
 
-void main() {
+void main(List<String> args) {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ShanuSendApp());
+  runApp(ShanuSendApp(initialFiles: args));
 }
 
 class ShanuSendApp extends StatelessWidget {
-  const ShanuSendApp({super.key});
+  final List<String> initialFiles;
+
+  const ShanuSendApp({
+    super.key,
+    this.initialFiles = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +23,7 @@ class ShanuSendApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      home: const HomeView(),
+      home: HomeView(initialFiles: initialFiles),
     );
   }
 }
