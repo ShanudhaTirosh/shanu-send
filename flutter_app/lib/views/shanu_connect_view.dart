@@ -388,11 +388,11 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                           },
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            _shanuService.sendMousepad(0, 0, click: 'singleclick', targetIp: _activeTargetIp);
+                            _shanuService.sendMousepad(0, 0, click: 'left', targetIp: _activeTargetIp);
                           },
                           onDoubleTap: () {
                             HapticFeedback.mediumImpact();
-                            _shanuService.sendMousepad(0, 0, click: 'doubleclick', targetIp: _activeTargetIp);
+                            _shanuService.sendMousepad(0, 0, click: 'double', targetIp: _activeTargetIp);
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -422,7 +422,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                             child: ElevatedButton(
                               onPressed: () {
                                 HapticFeedback.lightImpact();
-                                _shanuService.sendMousepad(0, 0, click: 'singleclick', targetIp: _activeTargetIp);
+                                _shanuService.sendMousepad(0, 0, click: 'left', targetIp: _activeTargetIp);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF1E293B),
@@ -436,7 +436,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
                             child: ElevatedButton(
                               onPressed: () {
                                 HapticFeedback.lightImpact();
-                                _shanuService.sendMousepad(0, 0, click: 'rightclick', targetIp: _activeTargetIp);
+                                _shanuService.sendMousepad(0, 0, click: 'right', targetIp: _activeTargetIp);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF1E293B),

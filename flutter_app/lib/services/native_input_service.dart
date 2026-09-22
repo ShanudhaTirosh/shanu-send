@@ -65,17 +65,22 @@ class NativeInputService {
   /// [click] is one of: 'left', 'right', 'double' (ShanuSend's own wire
   /// convention — see shanu_connect_service.dart's sendMousepad).
   Future<void> moveAndClick({required double dx, required double dy, String? click}) async {
+    String? normClick = click;
+    if (click == 'singleclick' || click == 'single') normClick = 'left';
+    if (click == 'rightclick') normClick = 'right';
+    if (click == 'doubleclick') normClick = 'double';
+
     if (Platform.isWindows) {
       _moveWindows(dx, dy);
-      if (click != null) _clickWindows(click);
+      if (normClick != null) _clickWindows(normClick);
       return;
     }
     if (Platform.isMacOS) {
-      await _moveAndClickMac(dx, dy, click);
+      await _moveAndClickMac(dx, dy, normClick);
       return;
     }
     if (Platform.isLinux) {
-      await _moveAndClickLinux(dx, dy, click);
+      await _moveAndClickLinux(dx, dy, normClick);
       return;
     }
   }

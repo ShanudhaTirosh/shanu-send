@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -194,7 +195,10 @@ class ReceiverService {
 
     try {
       final dir = await getApplicationDocumentsDirectory();
-      var savePath = '${dir.path}/$fileName';
+      final saveDir = Directory(p.join(dir.path, 'ShanuSendDownloads'));
+      await saveDir.create(recursive: true);
+
+      var savePath = p.join(saveDir.path, fileName);
       var file = File(savePath);
       int counter = 1;
       while (await file.exists()) {
@@ -202,9 +206,9 @@ class ReceiverService {
         if (dotIndex != -1) {
           final nameNoExt = fileName.substring(0, dotIndex);
           final ext = fileName.substring(dotIndex);
-          savePath = '${dir.path}/${nameNoExt}_($counter)$ext';
+          savePath = p.join(saveDir.path, '${nameNoExt}_($counter)$ext');
         } else {
-          savePath = '${dir.path}/${fileName}_($counter)';
+          savePath = p.join(saveDir.path, '${fileName}_($counter)');
         }
         file = File(savePath);
         counter++;
