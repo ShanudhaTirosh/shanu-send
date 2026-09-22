@@ -51,5 +51,9 @@ class TrustedDeviceStore {
     await _writeAll(all);
   }
 
+  Future<void> revokeAll() async {
+    await _writeAll({});
+  }
+
   Future<Map<String, dynamic>> listTrusted() => _readAll();
 }

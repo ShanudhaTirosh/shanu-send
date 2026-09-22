@@ -63,6 +63,40 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
     if (widget.devices.isNotEmpty) {
       _selectedDevice = widget.devices.first;
     }
+    _checkPairingStatus();
+  }
+
+  Future<void> _checkPairingStatus() async {
+    final trustedMap = await _trustStore.listTrusted();
+    if (trustedMap.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isPaired = false;
+          _pairedPeerId = null;
+        });
+      }
+      return;
+    }
+
+    String? foundId;
+    if (_selectedDevice != null) {
+      for (var entry in trustedMap.entries) {
+        if (entry.key == _selectedDevice!.fingerprint ||
+            entry.key == _selectedDevice!.alias ||
+            entry.key == _selectedDevice!.ip) {
+          foundId = entry.key;
+          break;
+        }
+      }
+    }
+    foundId ??= trustedMap.keys.first;
+
+    if (mounted) {
+      setState(() {
+        _isPaired = true;
+        _pairedPeerId = foundId;
+      });
+    }
   }
 
   Future<void> _startDiscovery() async {
@@ -75,6 +109,7 @@ class _ShanuConnectViewState extends State<ShanuConnectView> with SingleTickerPr
         _handlePairPacket(body, senderIp);
       }
     });
+    await _checkPairingStatus();
   }
 
   @override

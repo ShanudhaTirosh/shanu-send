@@ -66,12 +66,52 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
     }
 
     _startDiscovery();
+    _checkPairingStatus();
+  }
+
+  Future<void> _checkPairingStatus() async {
+    final trustedMap = await _trustStore.listTrusted();
+    if (trustedMap.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isPaired = false;
+          _pairedPeerId = null;
+        });
+      }
+      return;
+    }
+
+    String? foundId;
+    if (_activeDevice != null) {
+      for (var entry in trustedMap.entries) {
+        if (entry.key == _activeDevice!.fingerprint ||
+            entry.key == _activeDevice!.alias ||
+            entry.key == _activeDevice!.ip) {
+          foundId = entry.key;
+          break;
+        }
+      }
+    }
+    foundId ??= trustedMap.keys.first;
+
+    if (mounted) {
+      setState(() {
+        _isPaired = true;
+        _pairedPeerId = foundId;
+      });
+    }
+  }
+
+  Future<bool> _verifySenderTrusted() async {
+    final trustedMap = await _trustStore.listTrusted();
+    return trustedMap.isNotEmpty;
   }
 
   Future<void> _startDiscovery() async {
     _myDeviceId = await DeviceIdentityService().getOrCreateDeviceId();
     await _shanuService.startDiscovery('Desktop Host Hub', _myDeviceId!);
     _listenForPackets();
+    await _checkPairingStatus();
   }
 
   void _listenForPackets() {
@@ -86,8 +126,8 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
       }
 
       if (type == 'shanuconnect.mousepad') {
-        final senderId = _activeDevice?.alias; // best-effort peer label for logs only
-        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        final senderId = _activeDevice?.alias;
+        final trusted = await _verifySenderTrusted();
         if (!trusted) {
           debugPrint('Ignored mousepad packet from untrusted/unpaired sender ($senderId)');
           return;
@@ -100,13 +140,15 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
       }
 
       if (type == 'shanuconnect.presenter') {
+        final trusted = await _verifySenderTrusted();
+        if (!trusted) return;
         final next = body['next'] as bool? ?? false;
         await _inputService.sendKeyPress(next ? 'right' : 'left');
         return;
       }
 
       if (type == 'shanuconnect.lockdevice') {
-        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        final trusted = await _verifySenderTrusted();
         if (!trusted) return;
         await _inputService.lockWorkstation();
         return;
@@ -127,7 +169,7 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
       }
 
       if (type == 'shanuconnect.runcommand') {
-        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        final trusted = await _verifySenderTrusted();
         if (!trusted) return;
         final key = body['key'] as String? ?? '';
         if (key == 'lock') {
@@ -409,6 +451,7 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                                 if (val != null) {
                                   setState(() => _activeDevice = val);
                                   widget.onDeviceSelected?.call(val);
+                                  _checkPairingStatus();
                                 }
                               },
                               hint: Text('Select Device', style: TextStyle(color: theme.colorScheme.onSurface)),
@@ -440,14 +483,14 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     if (_isPaired) {
-                      if (_pairedPeerId != null) _trustStore.revoke(_pairedPeerId!);
+                      await _trustStore.revokeAll();
                       setState(() {
                         _isPaired = false;
                         _pairedPeerId = null;
                       });
-                      _showToast('Device Unpaired');
+                      _showToast('Device Unpaired & Pairings Revoked');
                     } else {
                       _requestPairing();
                     }
