@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../models/device_dto.dart';
 
 class DiscoveryService {
   final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(milliseconds: 600),
-    receiveTimeout: const Duration(milliseconds: 600),
+    connectTimeout: const Duration(milliseconds: 800),
+    receiveTimeout: const Duration(milliseconds: 800),
   ));
 
   final NetworkInfo _networkInfo = NetworkInfo();
@@ -19,6 +20,18 @@ class DiscoveryService {
   RawDatagramSocket? _multicastSocket;
   Timer? _announcementTimer;
   bool _isScanning = false;
+
+  DiscoveryService() {
+    if (!kIsWeb) {
+      _dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+          return client;
+        },
+      );
+    }
+  }
 
   Stream<List<DeviceDto>> get deviceStream => _deviceStreamController.stream;
   List<DeviceDto> get devices => List.unmodifiable(_discoveredDevices);
@@ -145,17 +158,20 @@ class DiscoveryService {
   }
 
   Future<void> _probeIp(String ip) async {
-    try {
-      final response = await _dio.get('http://$ip:53317/api/localsend/v2/info');
-      if (response.statusCode == 200 && response.data != null) {
-        final device = DeviceDto.fromJson(Map<String, dynamic>.from(response.data), ip);
-        if (!_discoveredDevices.any((d) => d.ip == ip || d.fingerprint == device.fingerprint)) {
-          _discoveredDevices.add(device);
-          _deviceStreamController.add(List.from(_discoveredDevices));
+    for (final scheme in ['http', 'https']) {
+      try {
+        final response = await _dio.get('$scheme://$ip:53317/api/localsend/v2/info');
+        if (response.statusCode == 200 && response.data != null) {
+          final device = DeviceDto.fromJson(Map<String, dynamic>.from(response.data), ip);
+          if (!_discoveredDevices.any((d) => d.ip == ip || d.fingerprint == device.fingerprint)) {
+            _discoveredDevices.add(device);
+            _deviceStreamController.add(List.from(_discoveredDevices));
+          }
+          break;
         }
+      } catch (_) {
+        // Continue to alternate scheme or next host
       }
-    } catch (_) {
-      // Offline or non-responsive host
     }
   }
 

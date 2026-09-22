@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:uuid/uuid.dart';
 import '../models/device_dto.dart';
 import '../models/file_dto.dart';
@@ -18,6 +20,18 @@ class TransferService {
 
   CancelToken? _activeCancelToken;
 
+  TransferService() {
+    if (!kIsWeb) {
+      _dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+          return client;
+        },
+      );
+    }
+  }
+
   void cancelActiveTransfer() {
     _activeCancelToken?.cancel('Transfer cancelled by user');
     _activeCancelToken = null;
@@ -28,38 +42,68 @@ class TransferService {
     required List<FileDto> files,
   }) async {
     final sessionId = const Uuid().v4();
-    final baseUrl = 'http://${targetDevice.ip}:${targetDevice.port}';
     _activeCancelToken = CancelToken();
 
-    // 1. Prepare upload request
+    // 1. Prepare upload request payload
     final fileMap = <String, Map<String, dynamic>>{};
     for (var f in files) {
       fileMap[f.id] = f.toJson();
     }
 
-    try {
-      final prepareResponse = await _dio.post(
-        '$baseUrl/api/localsend/v2/prepare-upload',
-        data: {
-          'info': {
-            'alias': 'ShanuSend Pro',
-            'version': '2.1',
-            'deviceModel': Platform.operatingSystem,
-            'deviceType': (Platform.isAndroid || Platform.isIOS) ? 'mobile' : 'desktop',
-            'fingerprint': 'shanu_flutter_fp',
-            'port': 53317,
-            'protocol': 'http',
-            'download': true,
+    final isHttpsFirst = targetDevice.https || targetDevice.protocol.toLowerCase() == 'https';
+    final schemes = isHttpsFirst ? ['https', 'http'] : ['http', 'https'];
+
+    Response? prepareResponse;
+    String activeScheme = schemes.first;
+
+    for (final scheme in schemes) {
+      final url = '$scheme://${targetDevice.ip}:${targetDevice.port}/api/localsend/v2/prepare-upload';
+      try {
+        final res = await _dio.post(
+          url,
+          data: {
+            'info': {
+              'alias': 'ShanuSend Pro',
+              'version': '2.1',
+              'deviceModel': Platform.operatingSystem,
+              'deviceType': (Platform.isAndroid || Platform.isIOS) ? 'mobile' : 'desktop',
+              'fingerprint': 'shanu_flutter_fp',
+              'port': 53317,
+              'protocol': 'http',
+              'download': true,
+            },
+            'files': fileMap,
           },
-          'files': fileMap,
-        },
-        cancelToken: _activeCancelToken,
-      );
+          cancelToken: _activeCancelToken,
+        );
 
-      if (prepareResponse.statusCode != 200 || prepareResponse.data == null) {
-        return false;
+        if (res.statusCode == 200 && res.data != null) {
+          prepareResponse = res;
+          activeScheme = scheme;
+          break;
+        }
+      } catch (e) {
+        debugPrint('Prepare upload attempt failed on $scheme: $e');
       }
+    }
 
+    if (prepareResponse == null || prepareResponse.data == null) {
+      if (!_statusController.isClosed) {
+        _statusController.add(TransferStatus(
+          sessionId: sessionId,
+          fileName: files.isNotEmpty ? files.first.fileName : 'Error',
+          receivedBytes: 0,
+          totalBytes: 0,
+          speedMBps: 0.0,
+          etaSeconds: 0,
+          isFailed: true,
+        ));
+      }
+      _activeCancelToken = null;
+      return false;
+    }
+
+    try {
       final Map<String, dynamic> responseData = prepareResponse.data is String 
           ? jsonDecode(prepareResponse.data) 
           : Map<String, dynamic>.from(prepareResponse.data);
@@ -72,7 +116,9 @@ class TransferService {
         });
       }
 
-      // 2. Stream files safely from disk without loading full bytes into memory (prevents OOM)
+      final baseUrl = '$activeScheme://${targetDevice.ip}:${targetDevice.port}';
+
+      // 2. Stream files safely from disk without loading full bytes into memory
       for (var file in files) {
         final token = tokens[file.id];
         if (token == null || file.path == null) continue;
@@ -83,7 +129,6 @@ class TransferService {
         final fileSize = await diskFile.length();
         final startTime = DateTime.now();
 
-        // Use stream direct from file to avoid loading large files into RAM
         await _dio.post(
           '$baseUrl/api/localsend/v2/upload',
           queryParameters: {
@@ -91,7 +136,7 @@ class TransferService {
             'fileId': file.id,
             'token': token,
           },
-          data: diskFile.openRead(), // Stream chunked from disk directly
+          data: diskFile.openRead(),
           cancelToken: _activeCancelToken,
           options: Options(
             headers: {
@@ -124,6 +169,7 @@ class TransferService {
       _activeCancelToken = null;
       return true;
     } catch (e) {
+      debugPrint('Upload stream failed: $e');
       if (!_statusController.isClosed) {
         _statusController.add(TransferStatus(
           sessionId: sessionId,

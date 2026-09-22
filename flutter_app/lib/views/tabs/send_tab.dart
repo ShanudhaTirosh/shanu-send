@@ -284,12 +284,17 @@ class _SendTabState extends State<SendTab> {
                           ),
                         ),
                         title: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              device.alias,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            Flexible(
+                              child: Text(
+                                device.alias,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
@@ -326,10 +331,31 @@ class _SendTabState extends State<SendTab> {
                             ElevatedButton(
                               onPressed: _selectedFiles.isEmpty
                                   ? null
-                                  : () => widget.transferService.sendFiles(
+                                  : () async {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Sending ${_selectedFiles.length} file(s) to ${device.alias}...'),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                      final success = await widget.transferService.sendFiles(
                                         targetDevice: device,
                                         files: _selectedFiles,
-                                      ),
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              success
+                                                  ? 'Files sent successfully to ${device.alias}!'
+                                                  : 'Transfer failed. Check connection or accept prompt on target.',
+                                            ),
+                                            backgroundColor: success ? const Color(0xFF10B981) : Colors.redAccent,
+                                            duration: const Duration(seconds: 4),
+                                          ),
+                                        );
+                                      }
+                                    },
                               style: ElevatedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
