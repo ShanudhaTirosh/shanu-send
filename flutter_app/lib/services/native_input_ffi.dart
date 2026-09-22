@@ -66,6 +66,40 @@ class NativeInputImplementation {
     }
   }
 
+  /// Synthesizes keypresses (e.g. 'left' / 'right' for Presenter slides).
+  Future<void> sendKeyPress(String key) async {
+    if (Platform.isWindows) {
+      _sendKeyPressWindows(key);
+      return;
+    }
+    if (Platform.isMacOS) {
+      await _sendKeyPressMac(key);
+      return;
+    }
+    if (Platform.isLinux) {
+      await _sendKeyPressLinux(key);
+      return;
+    }
+  }
+
+  /// Locks the host workstation.
+  Future<void> lockWorkstation() async {
+    if (Platform.isWindows) {
+      _lockWindows();
+      return;
+    }
+    if (Platform.isMacOS) {
+      await Process.run('pmset', ['displaysleepnow']);
+      return;
+    }
+    if (Platform.isLinux) {
+      await Process.run('xdg-screensaver', ['lock']);
+      return;
+    }
+  }
+
+  // ---- Windows Implementations ----
+
   void _moveWindows(double dx, double dy) {
     final lib = _user32Lib;
     if (lib == null) return;
@@ -116,6 +150,37 @@ class NativeInputImplementation {
     }
   }
 
+  void _sendKeyPressWindows(String key) {
+    final lib = _user32Lib;
+    if (lib == null) return;
+
+    final keybdEvent = lib.lookupFunction<
+        ffi.Void Function(ffi.Uint8, ffi.Uint8, ffi.Uint32, ffi.IntPtr),
+        void Function(int, int, int, int)>('keybd_event');
+
+    int vkCode = 0;
+    if (key == 'left' || key == 'prev') vkCode = 0x25; // VK_LEFT
+    if (key == 'right' || key == 'next') vkCode = 0x27; // VK_RIGHT
+    if (key == 'space') vkCode = 0x20; // VK_SPACE
+
+    if (vkCode != 0) {
+      const keyeventfKeyUp = 0x0002;
+      keybdEvent(vkCode, 0, 0, 0); // Key down
+      keybdEvent(vkCode, 0, keyeventfKeyUp, 0); // Key up
+    }
+  }
+
+  void _lockWindows() {
+    final lib = _user32Lib;
+    if (lib == null) return;
+    try {
+      final lockWorkStation = lib.lookupFunction<ffi.Int32 Function(), int Function()>('LockWorkStation');
+      lockWorkStation();
+    } catch (_) {}
+  }
+
+  // ---- macOS Implementations ----
+
   Future<void> _moveAndClickMac(double dx, double dy, String? click) async {
     if (!await _toolExists('cliclick')) return;
     await Process.run('cliclick', ['m:+${dx.round()},+${dy.round()}']);
@@ -132,6 +197,16 @@ class NativeInputImplementation {
     }
   }
 
+  Future<void> _sendKeyPressMac(String key) async {
+    if (!await _toolExists('cliclick')) return;
+    String cmdKey = 'arrow-right';
+    if (key == 'left' || key == 'prev') cmdKey = 'arrow-left';
+    if (key == 'right' || key == 'next') cmdKey = 'arrow-right';
+    await Process.run('cliclick', ['kp:$cmdKey']);
+  }
+
+  // ---- Linux Implementations ----
+
   Future<void> _moveAndClickLinux(double dx, double dy, String? click) async {
     if (!await _toolExists('xdotool')) return;
     await Process.run('xdotool', ['mousemove_relative', '--', dx.round().toString(), dy.round().toString()]);
@@ -146,6 +221,14 @@ class NativeInputImplementation {
         await Process.run('xdotool', ['click', '--repeat', '2', '1']);
         break;
     }
+  }
+
+  Future<void> _sendKeyPressLinux(String key) async {
+    if (!await _toolExists('xdotool')) return;
+    String xKey = 'Right';
+    if (key == 'left' || key == 'prev') xKey = 'Left';
+    if (key == 'right' || key == 'next') xKey = 'Right';
+    await Process.run('xdotool', ['key', xKey]);
   }
 }
 

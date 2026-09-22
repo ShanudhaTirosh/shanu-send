@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/device_dto.dart';
 import '../services/device_identity_service.dart';
 import '../services/native_input_service.dart';
@@ -95,6 +96,45 @@ class _DesktopPhoneLinkViewState extends State<DesktopPhoneLinkView> with Single
         final dy = (body['dy'] as num?)?.toDouble() ?? 0;
         final click = body['click'] as String?;
         await _inputService.moveAndClick(dx: dx, dy: dy, click: click);
+        return;
+      }
+
+      if (type == 'shanuconnect.presenter') {
+        final next = body['next'] as bool? ?? false;
+        await _inputService.sendKeyPress(next ? 'right' : 'left');
+        return;
+      }
+
+      if (type == 'shanuconnect.lockdevice') {
+        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        if (!trusted) return;
+        await _inputService.lockWorkstation();
+        return;
+      }
+
+      if (type == 'shanuconnect.clipboard') {
+        final content = body['content'] as String? ?? '';
+        if (content.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: content));
+          _showToast('Copied to Desktop Clipboard from Phone!');
+        }
+        return;
+      }
+
+      if (type == 'shanuconnect.findmyphone') {
+        _showToast('🔔 Phone Ring Alert Triggered!');
+        return;
+      }
+
+      if (type == 'shanuconnect.runcommand') {
+        final trusted = _pairedPeerId != null && await _trustStore.isTrusted(_pairedPeerId!);
+        if (!trusted) return;
+        final key = body['key'] as String? ?? '';
+        if (key == 'lock') {
+          await _inputService.lockWorkstation();
+        } else if (key == 'ping') {
+          _showToast('Ping received from paired phone');
+        }
         return;
       }
 

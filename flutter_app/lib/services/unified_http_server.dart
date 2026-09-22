@@ -440,132 +440,479 @@ class UnifiedHttpServer {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShanuSend AirDrop Portal</title>
+<title>ShanuSend WebDrop Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-dark: #0b0f19;
-    --card-bg: #161e2e;
-    --border-color: #283548;
-    --accent: #38bdf8;
+    --bg-dark: #07090e;
+    --card-bg: rgba(18, 26, 42, 0.85);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-hover: rgba(56, 189, 248, 0.4);
+    --accent: #00d285; /* LocalSend Emerald */
+    --accent-glow: rgba(0, 210, 133, 0.25);
+    --sky: #38bdf8;
     --indigo: #6366f1;
     --text-primary: #f8fafc;
     --text-muted: #94a3b8;
+    --card-radius: 24px;
   }
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-dark); color: var(--text-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; }
-  .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px 24px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
-  h1 { font-size: 22px; margin: 0 0 6px 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  p { color: var(--text-muted); font-size: 13px; margin: 0 0 20px 0; }
-  
-  .nav-tabs { display: flex; background: #0f172a; padding: 4px; border-radius: 14px; margin-bottom: 20px; border: 1px solid var(--border-color); }
-  .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 14px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
-  .tab-btn.active { background: #1e293b; color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #172554 0%, #07090e 65%);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    background: var(--card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--card-radius);
+    padding: 36px 28px;
+    max-width: 520px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 210, 133, 0.08);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .brand-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #00d285, #0284c7);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px var(--accent-glow);
+  }
+
+  .brand-icon svg { width: 24px; height: 24px; stroke: #ffffff; fill: none; stroke-width: 2.5; }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ffffff 30%, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .nav-tabs {
+    display: flex;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 5px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-color);
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 13.5px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .tab-btn.active {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: var(--accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 12px var(--accent-glow);
+    border: 1px solid rgba(0, 210, 133, 0.2);
+  }
 
   .tab-content { display: none; }
-  .tab-content.active { display: block; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 
-  .dropzone { border: 2px dashed #334155; border-radius: 16px; padding: 36px 20px; cursor: pointer; transition: all 0.2s; background: #0f172a; display: flex; flex-direction: column; align-items: center; }
-  .dropzone:hover { border-color: var(--indigo); background: #1e1b4b; }
-  
-  .btn { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 16px; font-size: 15px; transition: opacity 0.2s; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  
-  .progress { width: 100%; background: #1e293b; border-radius: 999px; height: 8px; margin-top: 16px; overflow: hidden; display: none; }
-  .bar { height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); width: 0%; transition: width 0.1s; }
-  #status { margin-top: 12px; font-size: 13px; font-weight: 500; color: var(--accent); }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
-  .file-list { display: flex; flex-direction: column; gap: 10px; text-align: left; max-height: 240px; overflow-y: auto; }
-  .file-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-color); }
-  .file-info { display: flex; flex-direction: column; overflow: hidden; }
-  .file-name { font-size: 14px; font-weight: 500; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-  .file-size { font-size: 12px; color: var(--text-muted); }
-  .dl-btn { background: #1e293b; color: var(--accent); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; }
-  .dl-btn:hover { background: #334155; color: white; }
+  .dropzone {
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 36px 20px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 
-  .icon-svg { width: 44px; height: 44px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .icon-small { width: 20px; height: 20px; vertical-align: middle; }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(0, 210, 133, 0.06);
+    transform: scale(1.01);
+  }
+
+  .dropzone-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(0, 210, 133, 0.12);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #00d285, #059669);
+    color: #ffffff;
+    border: none;
+    padding: 15px 24px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 18px;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px var(--accent-glow);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .progress-wrap {
+    width: 100%;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 999px;
+    height: 10px;
+    margin-top: 18px;
+    overflow: hidden;
+    display: none;
+    border: 1px solid var(--border-color);
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00d285, #38bdf8);
+    width: 0%;
+    transition: width 0.15s ease-out;
+    border-radius: 999px;
+  }
+
+  #status {
+    margin-top: 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--accent);
+    min-height: 20px;
+  }
+
+  .queue-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 160px;
+    overflow-y: auto;
+    text-align: left;
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-color);
+  }
+
+  .queue-name { font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .queue-size { color: var(--text-muted); font-size: 11.5px; }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s;
+  }
+
+  .file-item:hover { border-color: rgba(56, 189, 248, 0.3); }
+
+  .file-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+  .file-name { font-size: 14px; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .file-meta { font-size: 12px; color: var(--text-muted); }
+
+  .dl-btn {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.15));
+    color: var(--sky);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dl-btn:hover {
+    background: var(--sky);
+    color: #07090e;
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+  }
+
+  .empty-state {
+    padding: 36px 16px;
+    color: var(--text-muted);
+    font-size: 13.5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .empty-state svg { opacity: 0.4; }
+
+  footer {
+    margin-top: 24px;
+    font-size: 12px;
+    color: rgba(148, 163, 184, 0.6);
+  }
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>
-    <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-    ShanuSend WebDrop
-  </h1>
-  <p>Send and Receive files on Apple iOS / Mac Safari / Windows Chrome without installing any app.</p>
+
+<div class="container">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    </div>
+    <h1>ShanuSend WebDrop</h1>
+  </div>
+  <div class="subtitle">Fast cross-platform file transfer via local browser</div>
 
   <div class="nav-tabs">
-    <button class="tab-btn active" onclick="switchTab('send')">Send to Device</button>
-    <button class="tab-btn" onclick="switchTab('receive')">Receive Files</button>
+    <button class="tab-btn active" onclick="switchTab('send')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+      Send Files
+    </button>
+    <button class="tab-btn" onclick="switchTab('receive')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      Shared Files
+    </button>
   </div>
 
+  <!-- TAB: SEND -->
   <div id="tab-send" class="tab-content active">
     <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()">
-      <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <div style="margin-top: 12px; font-weight: 500; color: #cbd5e1;">Tap or Drag files here to send</div>
+      <div class="dropzone-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div style="font-weight: 700; color: #f1f5f9; font-size: 15px;">Choose or Drag files here</div>
+      <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">Supports videos, photos, archives & documents</div>
     </div>
-    <input type="file" id="fi" multiple style="display:none" onchange="updateFiles()">
-    <button class="btn" id="sbtn" onclick="upload()" disabled>Send Files</button>
-    <div class="progress" id="prg"><div class="bar" id="bar"></div></div>
+    <input type="file" id="fi" multiple style="display:none" onchange="handleFileSelect()">
+
+    <div id="queue" class="queue-list"></div>
+
+    <button class="btn-primary" id="sbtn" onclick="uploadFiles()" disabled>Send to Host Device</button>
+    <div class="progress-wrap" id="prg"><div class="progress-bar" id="bar"></div></div>
     <div id="status"></div>
   </div>
 
+  <!-- TAB: RECEIVE -->
   <div id="tab-receive" class="tab-content">
     <div id="file-container" class="file-list">
-      <div style="color:var(--text-muted); font-size:13px; padding: 20px;">No files shared yet by host device.</div>
+      <div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div>No files shared yet by host device.</div>
+      </div>
     </div>
   </div>
+
+  <footer>Connected via Secure High-Speed Local Wi-Fi / LAN</footer>
 </div>
 
 <script>
-  let files = [];
+  let selectedFiles = [];
+  let pollInterval = null;
+
+  // Drag and drop setup
+  const dz = document.getElementById('dz');
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dz.addEventListener(eventName, preventDefaults, false);
+  });
+  function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+  ['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, () => dz.classList.add('dragover')));
+  ['dragleave', 'drop'].forEach(e => dz.addEventListener(e, () => dz.classList.remove('dragover')));
+  dz.addEventListener('drop', handleDrop);
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    if (dt && dt.files.length) {
+      selectedFiles = Array.from(dt.files);
+      renderQueue();
+    }
+  }
+
+  function handleFileSelect() {
+    selectedFiles = Array.from(document.getElementById('fi').files);
+    renderQueue();
+  }
+
+  function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function renderQueue() {
+    const q = document.getElementById('queue');
+    const btn = document.getElementById('sbtn');
+    if (selectedFiles.length === 0) {
+      q.innerHTML = '';
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = false;
+    q.innerHTML = selectedFiles.map((f, i) => `
+      <div class="queue-item">
+        <div>
+          <div class="queue-name">${f.name}</div>
+          <div class="queue-size">${formatSize(f.size)}</div>
+        </div>
+        <div style="cursor:pointer;color:#ef4444;font-weight:bold;" onclick="removeFile(${i})">✕</div>
+      </div>
+    `).join('');
+  }
+
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    renderQueue();
+  }
+
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     if (tab === 'send') {
       document.querySelectorAll('.tab-btn')[0].classList.add('active');
       document.getElementById('tab-send').classList.add('active');
+      if (pollInterval) clearInterval(pollInterval);
     } else {
       document.querySelectorAll('.tab-btn')[1].classList.add('active');
       document.getElementById('tab-receive').classList.add('active');
       fetchSharedFiles();
+      if (!pollInterval) pollInterval = setInterval(fetchSharedFiles, 3000);
     }
   }
 
-  function updateFiles() {
-    files = Array.from(document.getElementById('fi').files);
-    if(files.length > 0) {
-      document.getElementById('dz').innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg><div style="margin-top:12px;font-weight:600;color:#e2e8f0">${files.length} file(s) selected</div>`;
-      document.getElementById('sbtn').disabled = false;
-    }
-  }
-
-  async function upload() {
-    if(!files.length) return;
-    document.getElementById('sbtn').disabled = true;
-    document.getElementById('prg').style.display = 'block';
+  async function uploadFiles() {
+    if (!selectedFiles.length) return;
+    const btn = document.getElementById('sbtn');
+    const prg = document.getElementById('prg');
+    const bar = document.getElementById('bar');
     const status = document.getElementById('status');
+
+    btn.disabled = true;
+    prg.style.display = 'block';
+    bar.style.width = '0%';
+    status.innerHTML = 'Preparing upload...';
+
     const formData = new FormData();
-    for(const f of files) formData.append('files', f);
-    
+    for (const f of selectedFiles) formData.append('files', f);
+
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/webdrop/upload');
+
     xhr.upload.onprogress = (e) => {
-      if(e.lengthComputable) {
+      if (e.lengthComputable) {
         const pct = Math.round((e.loaded / e.total) * 100);
-        document.getElementById('bar').style.width = pct + '%';
-        status.innerHTML = `Uploading: ${pct}% (${(e.loaded/1048576).toFixed(1)} MB / ${(e.total/1048576).toFixed(1)} MB)`;
+        bar.style.width = pct + '%';
+        status.innerHTML = `Uploading ${selectedFiles.length} file(s): ${pct}% (${formatSize(e.loaded)} / ${formatSize(e.total)})`;
       }
     };
+
     xhr.onload = () => {
-      if(xhr.status === 200) {
-        status.innerHTML = `<span style="color:#34d399">Files transferred successfully!</span>`;
-        document.getElementById('bar').style.width = '100%';
-        files = [];
+      if (xhr.status === 200) {
+        status.innerHTML = `<span style="color:#00d285">✓ Files uploaded successfully! Saved to ShanuSend Downloads.</span>`;
+        bar.style.width = '100%';
+        selectedFiles = [];
+        renderQueue();
+        document.getElementById('fi').value = '';
       } else {
-        status.innerHTML = `<span style="color:#f87171">Upload failed</span>`;
+        status.innerHTML = `<span style="color:#f87171">Upload failed. Please check network.</span>`;
       }
     };
+
+    xhr.onerror = () => {
+      status.innerHTML = `<span style="color:#f87171">Network error during upload.</span>`;
+      btn.disabled = false;
+    };
+
     xhr.send(formData);
   }
 
@@ -574,21 +921,28 @@ class UnifiedHttpServer {
     try {
       const res = await fetch('/api/webdrop/files');
       const list = await res.json();
-      if(!list || !list.length) {
-        container.innerHTML = '<div style="color:var(--text-muted); font-size:13px; padding: 20px;">No files shared yet by host device.</div>';
+      if (!list || !list.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div>No files shared yet by host device.</div>
+          </div>`;
         return;
       }
       container.innerHTML = list.map(f => `
         <div class="file-item">
           <div class="file-info">
             <div class="file-name">${f.name}</div>
-            <div class="file-size">${(f.size / 1048576).toFixed(1)} MB</div>
+            <div class="file-meta">${formatSize(f.size)}</div>
           </div>
-          <a class="dl-btn" href="/api/webdrop/download/${encodeURIComponent(f.name)}" download>Download</a>
+          <a class="dl-btn" href="/api/webdrop/download/${encodeURIComponent(f.name)}" download>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </a>
         </div>
       `).join('');
-    } catch(e) {
-      container.innerHTML = '<div style="color:#f87171; font-size:13px;">Error loading file list.</div>';
+    } catch (e) {
+      container.innerHTML = '<div style="color:#f87171; font-size:13px; padding: 20px;">Error loading file list.</div>';
     }
   }
 </script>

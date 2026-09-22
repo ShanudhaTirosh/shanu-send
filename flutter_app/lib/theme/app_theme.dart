@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 
+enum AppThemeMode { light, dark, midnight }
+
 class AppTheme {
+  // LocalSend Signature Colors
+  static const Color emeraldPrimary = Color(0xFF00D285);
+  static const Color emeraldDarkBg = Color(0xFF0D131E);
+  static const Color emeraldCardDark = Color(0xFF162032);
+  static const Color emeraldBorderDark = Color(0xFF243248);
+  
+  static const Color skyAccent = Color(0xFF38BDF8);
+  static const Color indigoAccent = Color(0xFF6366F1);
+
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0B0F19),
+      scaffoldBackgroundColor: emeraldDarkBg,
       colorScheme: const ColorScheme.dark(
-        surface: Color(0xFF161E2E),
-        primary: Color(0xFF38BDF8),
-        secondary: Color(0xFF6366F1),
+        surface: emeraldCardDark,
+        primary: emeraldPrimary,
+        secondary: skyAccent,
+        tertiary: indigoAccent,
         error: Color(0xFFEF4444),
         onSurface: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0B0F19),
+        backgroundColor: emeraldDarkBg,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
@@ -24,20 +36,63 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF161E2E),
+        color: emeraldCardDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF283548)),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: emeraldBorderDark),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF38BDF8),
-          foregroundColor: const Color(0xFF0B0F19),
+          backgroundColor: emeraldPrimary,
+          foregroundColor: const Color(0xFF07090E),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  static ThemeData get midnightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: Colors.black,
+      colorScheme: const ColorScheme.dark(
+        surface: Color(0xFF121212),
+        primary: emeraldPrimary,
+        secondary: skyAccent,
+        error: Color(0xFFEF4444),
+        onSurface: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF121212),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: emeraldPrimary,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
@@ -48,16 +103,16 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      scaffoldBackgroundColor: const Color(0xFFF1F5F9),
       colorScheme: const ColorScheme.light(
         surface: Colors.white,
-        primary: Color(0xFF0284C7),
-        secondary: Color(0xFF4F46E5),
+        primary: Color(0xFF059669),
+        secondary: Color(0xFF0284C7),
         error: Color(0xFFDC2626),
         onSurface: Color(0xFF0F172A),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF8FAFC),
+        backgroundColor: Color(0xFFF1F5F9),
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
@@ -70,17 +125,17 @@ class AppTheme {
         color: Colors.white,
         elevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0284C7),
+          backgroundColor: const Color(0xFF059669),
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),

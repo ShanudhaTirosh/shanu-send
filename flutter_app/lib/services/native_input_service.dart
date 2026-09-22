@@ -10,4 +10,8 @@ class NativeInputService {
 
   Future<void> moveAndClick({required double dx, required double dy, String? click}) =>
       _impl.moveAndClick(dx: dx, dy: dy, click: click);
+
+  Future<void> sendKeyPress(String key) => _impl.sendKeyPress(key);
+
+  Future<void> lockWorkstation() => _impl.lockWorkstation();
 }
