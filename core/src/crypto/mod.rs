@@ -65,6 +65,23 @@ pub fn verify_pin(provided: &str, expected: &str) -> bool {
         == 0
 }
 
+/// Derives a deterministic 6-digit SAS (Short Authentication String) PIN
+/// from two peer public keys / identity strings.
+pub fn derive_sas_code(key_a: &[u8], key_b: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"SHANUSEND_SAS_V1");
+    if key_a <= key_b {
+        hasher.update(key_a);
+        hasher.update(key_b);
+    } else {
+        hasher.update(key_b);
+        hasher.update(key_a);
+    }
+    let digest = hasher.finalize();
+    let num = u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]);
+    format!("{:06}", num % 1_000_000)
+}
+
 /// A `rustls` certificate verifier that ignores the normal CA chain (there
 /// isn't one — every device is its own CA, by design) and instead accepts a
 /// connection if and only if the presented leaf certificate's SHA-256

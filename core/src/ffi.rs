@@ -76,6 +76,27 @@ pub unsafe extern "C" fn shanusend_approve_pairing(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shanusend_derive_sas_code(key_a: *const c_char, key_b: *const c_char) -> *mut c_char {
+    if key_a.is_null() || key_b.is_null() {
+        return std::ptr::null_mut();
+    }
+    let a_bytes = match CStr::from_ptr(key_a).to_str() {
+        Ok(s) => s.as_bytes(),
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let b_bytes = match CStr::from_ptr(key_b).to_str() {
+        Ok(s) => s.as_bytes(),
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let sas = crate::crypto::derive_sas_code(a_bytes, b_bytes);
+    match CString::new(sas) {
+        Ok(c_str) => c_str.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shanusend_free_engine(handle: *mut EngineHandle) {
     if !handle.is_null() {
         let _ = Box::from_raw(handle);
@@ -88,3 +109,4 @@ pub unsafe extern "C" fn shanusend_free_string(s: *mut c_char) {
         let _ = CString::from_raw(s);
     }
 }
+

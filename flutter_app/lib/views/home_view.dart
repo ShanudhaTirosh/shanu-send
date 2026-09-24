@@ -18,6 +18,7 @@ import 'tabs/settings_tab.dart';
 import 'shanu_connect_view.dart';
 import 'desktop_phone_link_view.dart';
 import 'scrcpy_gui_view.dart';
+import 'remote_desktop_view.dart';
 
 class HomeView extends StatefulWidget {
   final List<String> initialFiles;
@@ -323,6 +324,11 @@ class _HomeViewState extends State<HomeView> {
                 );
               },
             ),
+            RemoteDesktopView(
+              targetDevice: _selectedDevice,
+              targetIp: _selectedDevice?.ip,
+              deviceName: _selectedDevice?.alias ?? 'Host PC',
+            ),
             const ScrcpyGuiView(),
             SettingsTab(
               deviceAlias: _deviceAlias,
@@ -362,6 +368,11 @@ class _HomeViewState extends State<HomeView> {
                   devices: devices,
                 );
               },
+            ),
+            RemoteDesktopView(
+              targetDevice: _selectedDevice,
+              targetIp: _selectedDevice?.ip,
+              deviceName: _selectedDevice?.alias ?? 'Host PC',
             ),
             SettingsTab(
               deviceAlias: _deviceAlias,
@@ -430,6 +441,10 @@ class _HomeViewState extends State<HomeView> {
                             label: Text('Phone Link'),
                           ),
                           NavigationRailDestination(
+                            icon: Icon(Icons.desktop_windows_rounded),
+                            label: Text('Remote PC'),
+                          ),
+                          NavigationRailDestination(
                             icon: Icon(Icons.aspect_ratio_rounded),
                             label: Text('Scrcpy GUI'),
                           ),
@@ -450,6 +465,10 @@ class _HomeViewState extends State<HomeView> {
                           NavigationRailDestination(
                             icon: Icon(Icons.mouse_rounded),
                             label: Text('Remote'),
+                          ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.desktop_windows_rounded),
+                            label: Text('Remote PC'),
                           ),
                           NavigationRailDestination(
                             icon: Icon(Icons.settings_rounded),
@@ -497,6 +516,10 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Phone Link',
                       ),
                       BottomNavigationBarItem(
+                        icon: Icon(Icons.desktop_windows_rounded),
+                        label: 'Remote PC',
+                      ),
+                      BottomNavigationBarItem(
                         icon: Icon(Icons.aspect_ratio_rounded),
                         label: 'Scrcpy',
                       ),
@@ -519,11 +542,16 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Remote',
                       ),
                       BottomNavigationBarItem(
+                        icon: Icon(Icons.desktop_windows_rounded),
+                        label: 'Remote PC',
+                      ),
+                      BottomNavigationBarItem(
                         icon: Icon(Icons.settings_rounded),
                         label: 'Settings',
                       ),
                     ],
             ),
     );
+
   }
 }
